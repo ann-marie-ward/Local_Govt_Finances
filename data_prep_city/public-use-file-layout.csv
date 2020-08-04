@@ -1,0 +1,23 @@
+
+,State Government Finances
+
+
+Characteristic,Description
+File Type,ASCII
+REC Length,35 Characters
+Data Fields per Record,1
+Record Type,"Fixed Length, No Delimiter"
+File Naming Convention,XXstate35.txt where XX represents the last two digits of the fiscal year of the data represented in the file
+
+Field Name,Position,Start Position,Length,Characteristic
+,
+"Government ID [http://www2.census.gov/govs/state/government_ids.xls]
+[EXCEL, 17KB]",1-14,1,14,"Numeric,zero filled"
+"Item Code [http://www2.census.gov/govs/state/itemcodes.xls]
+[EXCEL, 84KB]",15-17,15,3,Alpha numeric
+"Amount
+(thousands)",18-32,18,12,Numeric
+Survey Year,30-31,30,2,Numeric
+Year of Data,32-33,32,2,Numeric
+Origin,34-35,34,2,Alpha Numeric
+,
