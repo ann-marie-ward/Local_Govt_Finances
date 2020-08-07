@@ -37,7 +37,7 @@ with open(DATA_PATH.joinpath("df_rev.pickle"), "rb") as handle:
     df_rev = pickle.load(handle)
 
 with open(DATA_PATH.joinpath("census.pickle"), "rb") as handle:
-    df_cen = pickle.load(handle)
+    census = pickle.load(handle)
 
 
 
@@ -540,6 +540,7 @@ category_dropdown = html.Div(
             options=[{"label": "All Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in df_exp["Category"].unique()],
             placeholder="Select a category",
+            value='Public Safety'
         )
     ],
     className="px-2",
@@ -552,7 +553,8 @@ sub_category_dropdown = html.Div(
             options=[{"label": "All Sub Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in df_exp["Description"].unique()],
             placeholder="Select a sub category",
-            style={'font-size' : '90%'}
+            style={'font-size' : '90%'},
+            value='Police protection'
         )
     ],
     className="px-2",
@@ -696,6 +698,7 @@ layout = dbc.Container(
         Output("state_local_dropdown", "value"),
     ],
     [Input("expenditures", "n_clicks"), Input("revenue", "n_clicks")],
+    prevent_initial_call=True
 )
 def update_exp_or_rev(exp, rev):
     ctx = dash.callback_context
@@ -727,6 +730,7 @@ def update_state_dropdown(clickData):
         Output("subcategory_dropdown", "value"),
     ],
     [Input("category_dropdown", "value"), Input("store_exp_or_rev", "data")],
+     prevent_initial_call=True
 )
 def update_sub_category_dropdown(cat, exp_or_rev):
     
@@ -752,6 +756,7 @@ def update_sub_category_dropdown(cat, exp_or_rev):
 @app.callback(
     [Output("sunburst_usa", "figure"), Output("usa_stats", "children")],
     [Input("year", "value"), Input("store_exp_or_rev", "data")],
+    prevent_initial_call=True
 )
 def update_usa(year, exp_or_rev):
     year = str(year)
@@ -834,6 +839,7 @@ def update_mystate(mystate, year, exp_or_rev):
        
     ],
     [State("store_exp_or_rev", "data")],
+    
 )
 def update_map(__, year, state, cat, subcat, local, exp_or_rev):
     print(state, cat, subcat, local)
@@ -854,11 +860,15 @@ def update_map(__, year, state, cat, subcat, local, exp_or_rev):
         dff_sunburst = dff_table.copy() 
         sunburst_title = " ".join([str(year), exp_or_rev, state]) 
         print('1', dff_table.head(2))
-    if cat and (cat != 'all') and (subcat is None): 
+  
+    if cat and (cat != 'all'): 
         dff_table = dff_table[dff_table["Category"] == cat] 
         dff_map = dff_map[dff_map["Category"] == cat] 
         update_title = " ".join([str(year), exp_or_rev, cat]) 
         print('2', dff_table.head(2))
+
+
+
     if subcat and (subcat != 'all'): 
         dff_table = dff_table[dff_table["Description"] == subcat] 
         dff_map = dff_map[dff_map["Description"] == subcat] 

@@ -68,8 +68,20 @@ with open(DATA_PATH.joinpath('df_city_rev.pickle'), 'rb') as handle:
 # used to add line description to report
 df_description = df_summary[['Line', 'Description']]
 
+
 print(df_summary)
 print(df_summary.columns)
+
+# add category
+df_summary['Category']= ''
+df_summary['Type']= ''
+for cat in du.revenue_cats:
+    for line_no in du.revenue_cats[cat]:
+        df_summary.loc[df_summary['Line'] == line_no, ['Category', 'Type']] = [cat, 'R']      
+        
+for cat in du.expenditure_cats:
+    for line_no in du.expenditure_cats[cat]:
+        df_summary.loc[df_summary['Line'] == line_no, ['Category', 'Type']] = [cat, 'E']
 
 
 #########  Table helper functions #############################################
@@ -702,6 +714,7 @@ def update_sub_category_dropdown(cat, exp_or_rev):
     cat_options = ([{"label": "All Categories", "value": "all"}] 
               + [{"label": c, "value": c} for c in report_cats])
 
+    print(df_summary)
     dff= df_summary[df_summary['Category'].isin(report_cats)]
     if (cat is None) or (cat == 'all'):
         subcat_options=([{"label": "All Sub Categories", "value": "all"}] 
@@ -742,7 +755,7 @@ def update_city_table(exp_or_rev, year, cat, subcat,  dff_exp, dff_rev):
         
         
         # filter        
-        if cat and (cat != 'all') and (subcat is None): 
+        if cat and (cat != 'all'): 
             df_table = df_table[df_table["Category"] == cat] 
          #   print('2', df_table.head(2))
         if subcat and (subcat != 'all'): 

@@ -72,16 +72,6 @@ df_summary= df_summary[['Line', 'Description', 'Item Codes']]
 df_summary[['Line', 'Item Codes']] = df_summary[['Line', 'Item Codes']].astype('category')
 df_summary['Description'] = df_summary['Description'].astype('str')
 
-# add category
-df_summary['Category']= ''
-for cat in du.revenue_cats:
-    for line_no in du.revenue_cats[cat]:
-        df_summary.loc[df_summary['Line'] == line_no, 'Category'] = cat
-for cat in du.expenditure_cats:
-    for line_no in du.expenditure_cats[cat]:
-        df_summary.loc[df_summary['Line'] == line_no, 'Category'] = cat
-
-
 with open( DATA_PATH.joinpath('df_summary.pickle'), 'wb') as handle:
     pickle.dump(df_summary, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -92,15 +82,7 @@ summary_dict = dff_summary['Item Codes'].to_dict()
 for line in summary_dict:   
     summary_dict[line] = summary_dict[line].split(', ')
 
-
-
 print('starting fin')
-
-
-
-
-
-
 
 ################# Individual data file ####################################
 
@@ -273,17 +255,11 @@ Fin_GID = {year:  make_Fin_GID_dict(file) for year, file in GID_filenames.items(
 with open( DATA_PATH.joinpath('Fin_GID.pickle'), 'wb') as handle:
     pickle.dump(Fin_GID, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-#with open(DATA_PATH.joinpath('Fin_GID.pickle'), 'rb') as handle:
-#    Fin_GID = pickle.load(handle)
-
-
 
 
 print('starting df_exp and df_rev')
 
 ########################  make df_exp and df_rev ########################
-# Used to add categories to reports
-df_cats =df_summary[['Line', 'Category']]
 
 def make_df_report(df_fin, year, report):
     """  Make df for a single year of a report.   The report is a summary of  line numbers
@@ -302,17 +278,16 @@ def make_df_report(df_fin, year, report):
         A dataframe in a shape needed for the sunburst and treemap charts for a single year
     """
 
-    # add categories and only keep lines with categories
-    df_report = df_fin.merge(df_cats, on='Line')
-    df_report = df_report[df_report['Category'] != '']
-    
     if report == "revenue":
         report_cats = du.revenue_cats
     elif report == "expenditures":
         report_cats = du.expenditure_cats     
-
-    df_report= df_report[df_report['Category'].isin(report_cats)]
     
+    # add categories and only keep lines with categories
+    df_fin['Category'] = ''
+    for cat in report_cats:         
+        df_fin.loc[df_fin['Line'].isin(report_cats[cat]), ['Category']] = cat        
+    df_report = df_fin[df_fin['Category'] != '']
 
     # add columns from df_Fin_GID
     df_report = df_report.merge(Fin_GID[year], on="ID code")
@@ -343,9 +318,6 @@ print('ready')
 
 
 
-
-################################
-####################################
 #############################
 
 #Another version thats too slow!
