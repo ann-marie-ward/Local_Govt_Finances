@@ -221,7 +221,7 @@ revenue_cats = {
     "Other": [39,40,41,42,48],
 }
 
-# Line numbers and descriptions from the ensus spreadsheet and df_summary
+# Line numbers and descriptions from the census spreadsheet and df_summary
 lines_description = {
     
 }
