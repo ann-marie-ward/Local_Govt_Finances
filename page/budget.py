@@ -39,6 +39,7 @@ with open(DATA_PATH.joinpath("df_rev.pickle"), "rb") as handle:
 with open(DATA_PATH.joinpath("census.pickle"), "rb") as handle:
     census = pickle.load(handle)
 
+#df_cen = census[2017]
 
 
 # Update this when new data is added:
@@ -90,31 +91,14 @@ df_pop = read_census_pop()
 ######################    Figures   ###########################################
 
 
-def make_sunburst(df, path, values, title):
-    colors = {
-        "Education": "#446e96",
-        "Inter-Governmental": "#446e96",
-        "Administration": "#999999",
-        "Property Tax": "#999999",
-        "Health & Welfare": "#3cb521",
-        "Sales Tax": "#3cb521",
-        "Parks & Recreation": "#cd0200",
-        "Income Tax": "#cd0200",
-        "Public Safety": "#d47500",
-        "Other Tax": "#d47500",
-        "Transportation": "#3399f3",
-        "Current Charges": "#3399f3",
-        "Utilities": "#eeeeee",
-        "Other": "#333333",
-        "(?)": "white",
-    }
+def make_sunburst(df, path, values, title):  
 
     fig = px.sunburst(
         df,
         path=path,
         values=values,
         color="Category",
-        color_discrete_map=colors
+        color_discrete_map=du.sunburst_colors
         #       hover_data=['Population']
     )
     fig.update_traces(
@@ -217,7 +201,7 @@ def make_choropleth(dff, title, state, year):
                 x=1,
                 y=0,
                 showarrow=False,
-                text='bot 3: <br>' + bot3,
+                text='Bottom 3: <br>' + bot3,
                 xref="paper",
                 yref="paper"
             ),
@@ -501,6 +485,7 @@ year_slider = html.Div(
                 for year in YEARS
             },
             value=int(START_YR),
+            included=False,
             className="mt-3  p-3 mb-5",
         )
     ]

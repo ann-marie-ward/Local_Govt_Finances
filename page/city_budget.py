@@ -245,8 +245,8 @@ columns = [
      
      {"title": 'Population', "field":  'Population',
      "hozAlign": "right", 
-    # "formatter": "money", "formatterParams":{"precision":0},
-     "formatter": "spark"
+     "formatter": "money", "formatterParams":{"precision":0},
+    
     
     # "headerFilter":True
      },
@@ -430,6 +430,7 @@ year_slider = html.Div(
                 for year in YEARS
             },
             value=int(START_YR),
+            included = False,
             className="mt-3  p-3 mb-5",
         )
     ]
@@ -442,6 +443,7 @@ category_dropdown = html.Div(
             options=[{"label": "All Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in df_exp["Category"].unique()],
             placeholder="Select a category",
+            style={'font-size' : '90%'}
         )
     ],
     className="px-2",
@@ -461,24 +463,6 @@ sub_category_dropdown = html.Div(
 )
 
 
-#table_subtotal = html.Div(
-#    [
-#        html.Div("Include:", style={"font-weight": "bold"}),
-#        dcc.RadioItems(
-#            id="city_table_subtotal",
-#            options=[
-#                {"label": "City/District only", "value": "city"},
-#                {"label": "Category", "value": "cat"},
-#                {"label": "Sub Category", "value": "subcat"},                
-#            ],
-#            value="city",
-#            labelStyle={"display": "block"},
-#            labelClassName="m-2",
-#            inputClassName="mr-2",
-#        ),
-#    ],
-#    className="pt-4 p-2 border-bottom",
-#)
 
 #####################   Header Cards and Markdown #############################
 first_card = dbc.Card(
@@ -650,7 +634,8 @@ def update_selected_cities_data(tabulator_row, selected_cities_store, selected_c
         selected_cities_store[tabulator_row['ID code']] = tabulator_row['ID name']      
      
         if selected_cities_dd:
-            selected_cities_dd.append(tabulator_row['ID code'])
+            if tabulator_row['ID code'] not in selected_cities_dd:
+                selected_cities_dd.append(tabulator_row['ID code'])
         else:
             selected_cities_dd = [tabulator_row['ID code']]
     

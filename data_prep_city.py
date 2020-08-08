@@ -52,8 +52,11 @@ DATA_PATH = PATH.joinpath("./data").resolve()
 DATA_PREP_PATH = PATH.joinpath("./data_prep_city").resolve()
 
 
+
+
 ########  Important!!  Update this when new data is added.
 YEARS = [str(year) for year in range(2014, 2018)]
+
 
 
 ##############  Summary of which Item Codes are in each line of report ###########################
@@ -148,8 +151,35 @@ for year in fin:
     with open( DATA_PATH.joinpath(filename), 'wb') as handle:
         pickle.dump(fin[year], handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+
+
 print('starting GID')
 
+
+###############  Helper functions for ID File #################
+
+# excel spreadsheet is a list of all city names in the US
+#  make a list of all cities that end with the word "City"
+df = pd.read_excel(
+        DATA_PREP_PATH.joinpath('city_names.xlsx'))
+
+df['City'] = df['City'].astype(str).str.upper()
+df = df[df['City'].str.endswith(' CITY')]
+citycity= df['City'].unique()
+
+def fix_name(name):
+    ''' corrects city name in Fin_GID file
+
+    For some strange reason, all of the cities and towns end with the word "City" or "Town"
+    ie Seattle is Seattle City.  This removes the extra "City" but it can't remove the 
+    "City" from places like "New York City"
+    '''
+    if name in citycity:
+        return name
+    else:
+        return name[0:-5] if name.endswith(' CITY') or name.endswith(' TOWN') else name
+
+ 
 ###################  ID File   #################################
 ##GID Directory Information File (Basic identifier information for corresponding finance survey)
 ## sample for 2017
@@ -203,9 +233,7 @@ def make_Fin_GID_dict(filename):
     df_Fin_GID['Function code for special districts'] = df_Fin_GID['Function code for special districts'].astype(str).fillna(' ')
 
 
-    # TODO - may be faster to change to a df and do a join rather than itterate   
-
-
+    
     # state code as defined in the docs is the first 2 digits of ID code, and this is
     # different than the "State code" column in this file (which includes territories).
     df_Fin_GID['State'] = df_Fin_GID.loc[:, 'ID code'].str[:2]
@@ -218,7 +246,9 @@ def make_Fin_GID_dict(filename):
         for state in df_Fin_GID['State']
     ]
     df_Fin_GID.loc[:, 'State'] = state_name
-    df_Fin_GID.loc[:, 'ST'] = state_abbr
+    df_Fin_GID.loc[:, 'ST'] = state_abbr   
+
+    df_Fin_GID['ID name'] = df_Fin_GID['ID name'].apply(fix_name)
 
    
     special_districts = [
@@ -254,8 +284,6 @@ Fin_GID = {year:  make_Fin_GID_dict(file) for year, file in GID_filenames.items(
 
 with open( DATA_PATH.joinpath('Fin_GID.pickle'), 'wb') as handle:
     pickle.dump(Fin_GID, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
 
 print('starting df_exp and df_rev')
 
@@ -571,4 +599,23 @@ print('ready')
        
 
 
+###############   READING DATA INTO PYTHON INTERACTIVE
 
+#MYDATA = r'C:\Users\amwar\source\repos\city_budgets\data\\'
+#MYCITYDATA = r'C:\Users\amwar\source\repos\city_budgets\data_prep_city\\'
+
+
+## read pickle files from my dir
+#with open(MYDATA + 'df_city_city.pickle', 'rb') as handle:
+#    df_city_city = pickle.load(handle)
+
+## read excel files from my dir
+#df = pd.read_excel(MYCITYDATA + 'city_names.xlsx')
+
+
+
+
+
+
+
+   
