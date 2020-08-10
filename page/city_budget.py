@@ -1,7 +1,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output, State, MATCH, ALL
 from dash.exceptions import PreventUpdate
 
 import plotly.graph_objects as go
@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 import pathlib
 import pickle
+import json
 
 import data_utilities as du
 from app import app, navbar, footer
@@ -37,8 +38,8 @@ pd.set_option("display.max_columns", 12)
 YEARS = ['2014', '2015', '2016', '2017']
 START_YR = "2017"
 
-init_selected_cities = {'48201702100000': 'SEATTLE', '38202600300000': 'PORTLAND OR',
-                        '03201000200000': "TUCSON"}
+init_selected_cities = {'48201702100000': 'SEATTLE, WA', '38202600300000': 'PORTLAND, OR',
+                        '03201000200000': "TUCSON, AZ"}
                 #        '03201000200000': "TUCSON", '03201090200000': "MARANA"}
 
 
@@ -68,9 +69,6 @@ with open(DATA_PATH.joinpath('df_city_rev.pickle'), 'rb') as handle:
 # used to add line description to report
 df_description = df_summary[['Line', 'Description']]
 
-
-print(df_summary)
-print(df_summary.columns)
 
 # add category
 df_summary['Category']= ''
@@ -121,6 +119,7 @@ def make_dff_exp_rev(selected_cities, exp_or_rev):
     df_tablew.columns = level0+'_'+level1
     df_tablew = df_tablew.rename(columns={'ST_': 'ST', 'ID code_': 'ID code', 'ID name_': 'ID name', 
                                           'Category_': 'Category', 'Description_': 'Description'})
+    df_tablew['ID name'] = df_tablew['ID name'] + ", " + df_tablew['ST']
     return(df_tablew.to_dict('records'))
 
 
@@ -282,11 +281,11 @@ city_columns = [
      },    
      {"title": 'Category', "field":  'Category',
      "hozAlign": "left",     
-   #  "headerFilter":True
+     "headerFilter":True
      },
      {"title": 'Sub Category', "field": 'Description',
      "hozAlign": "left",     
-   #  "headerFilter":True
+     "headerFilter":True
      },
          
      {"title": 'Amount', "field":  'Amount',
@@ -446,7 +445,7 @@ category_dropdown = html.Div(
             style={'font-size' : '90%'}
         )
     ],
-    className="px-2",
+    className="px-2",  style={'display':'none'}
 )
 
 sub_category_dropdown = html.Div(
@@ -459,9 +458,28 @@ sub_category_dropdown = html.Div(
             style={'font-size' : '90%'}
         )
     ],
-    className="px-2",
+    className="px-2", style={'display': 'none'}
 )
 
+table_subtotal = html.Div(
+    [
+        html.Div("Show in the table:", style={"font-weight": "bold"}),
+        dcc.RadioItems(
+            id="table_subtotal",
+            options=[
+                {"label": "City/District totals only", "value": "city_totals"},
+                {"label": "All Categories", "value": "all_cats"},
+                {"label": "All Sub Categies", "value": "all_subcats"},
+                
+            ],
+            value="city_totals",
+            labelStyle={"display": "block"},
+            labelClassName="m-2",
+            inputClassName="mr-2",
+        ),
+    ],
+    className="p-3 border",
+)
 
 
 #####################   Header Cards and Markdown #############################
@@ -494,7 +512,8 @@ layout = dbc.Container(
             dcc.Store(id='store_selected_cities', data=init_selected_cities),                  
             dcc.Store(id="store_city_exp_or_rev", data="expenditures"),
             dcc.Store(id='store_dff_exp', data=make_dff_exp_rev(init_selected_cities, 'expenditures')),
-            dcc.Store(id='store_dff_rev', data=make_dff_exp_rev(init_selected_cities, 'revenue'))
+            dcc.Store(id='store_dff_rev', data=make_dff_exp_rev(init_selected_cities, 'revenue')),
+            dcc.Store(id='store_clicked_on', data=None)
         ]),  
          html.Div(
             [
@@ -574,7 +593,8 @@ layout = dbc.Container(
                         dbc.Col(  # controls
                             html.Div( 
                                   [category_dropdown]
-                                + [sub_category_dropdown],
+                                + [sub_category_dropdown]
+                                + [table_subtotal],
                                 className="mt-5 mr-3 ml-3 p-2 border bg-white",
                             ),
                             width={"size": 2, "order": 1},
@@ -596,7 +616,7 @@ layout = dbc.Container(
             ]
         )
         ], className='bg-primary mr-5 ml-5'),
-
+       html.Div(id='test'),
        ###########################   footer #########################
         html.Div(#footer
             [                
@@ -631,7 +651,7 @@ def update_selected_cities_data(tabulator_row, selected_cities_store, selected_c
      
     #TODO add state name to ID name... duplicate ID names in file ?
     if tabulator_row:
-        selected_cities_store[tabulator_row['ID code']] = tabulator_row['ID name']      
+        selected_cities_store[tabulator_row['ID code']] = ', '.join([tabulator_row['ID name'] ,tabulator_row['ST']])
      
         if selected_cities_dd:
             if tabulator_row['ID code'] not in selected_cities_dd:
@@ -671,7 +691,8 @@ def update_selected_cities_data(selected_cities_dd):
     ],
     [
         Input("city_expenditures", "n_clicks"), 
-        Input("city_revenue", "n_clicks"),       
+        Input("city_revenue", "n_clicks"),
+     
     ],    
 )
 def update_exp_or_rev(exp, rev):
@@ -689,7 +710,8 @@ def update_exp_or_rev(exp, rev):
     ],
     [
         Input("city_category_dropdown", "value"), 
-        Input("store_city_exp_or_rev", "data"),               
+        Input("store_city_exp_or_rev", "data"),  
+       
     ],
 )
 def update_sub_category_dropdown(cat, exp_or_rev):
@@ -699,7 +721,7 @@ def update_sub_category_dropdown(cat, exp_or_rev):
     cat_options = ([{"label": "All Categories", "value": "all"}] 
               + [{"label": c, "value": c} for c in report_cats])
 
-    print(df_summary)
+    
     dff= df_summary[df_summary['Category'].isin(report_cats)]
     if (cat is None) or (cat == 'all'):
         subcat_options=([{"label": "All Sub Categories", "value": "all"}] 
@@ -714,72 +736,85 @@ def update_sub_category_dropdown(cat, exp_or_rev):
 
 
 #####  Update city table 
-@app.callback(
-   [       
-       Output('city_table', 'data'),  
-       Output('city_table_title', 'children')
-    ],
+@app.callback(          
+       Output('city_table', 'data'), 
     [   
         Input('store_city_exp_or_rev', 'data'),       
         Input('city_year', 'value'),
         Input("city_category_dropdown", "value"),
         Input("city_subcategory_dropdown", "value"),
-
+        Input('table_subtotal', 'value'),
+        Input('store_clicked_on', 'data'),
        
         Input('store_dff_exp', 'data'),
-        Input('store_dff_rev', 'data')
+        Input('store_dff_rev', 'data'),       
     ],    
 )
-def update_city_table(exp_or_rev, year, cat, subcat,  dff_exp, dff_rev):           
+def update_city_table(exp_or_rev, year, cat, subcat, subtotal, clicked_on,  dff_exp, dff_rev): 
+    
     if dff_exp == []:
-        title = ''
-        data = []
-    else:
-        title = "Expenditures " + str(year) if exp_or_rev == 'expenditures' else 'Revenue ' + str(year)    
-        df_table = pd.DataFrame(dff_exp if exp_or_rev == 'expenditures' else dff_rev)   
+        return '', []   
+
+    ctx = dash.callback_context
+    input_id = ctx.triggered[0]["prop_id"].split(".")[0] 
+    
+    categories = list(du.revenue_cats) + list(du.expenditure_cats)
+      
+    df_table = pd.DataFrame(dff_exp if exp_or_rev == 'expenditures' else dff_rev)   
+   
+    if input_id == 'store_clicked_on' and clicked_on:
+        print('This:', clicked_on)
+        if clicked_on in categories:
+            cat = clicked_on
+        elif df_table['ID name'].str.contains(clicked_on).any():
+            cat= None
+        else:
+            subcat= clicked_on
+            print(subcat)
         
         
-        # filter        
-        if cat and (cat != 'all'): 
-            df_table = df_table[df_table["Category"] == cat] 
-         #   print('2', df_table.head(2))
-        if subcat and (subcat != 'all'): 
-            df_table = df_table[df_table["Description"] == subcat]             
-          #  print('3', df_table.head(2))
+        
+    # filter        
+   # if cat and (cat != 'all'):   # if dropdown
+    if cat and (subtotal != 'all_cats'):     # if button
+        df_table = df_table[df_table["Category"] == cat] 
+        #   print('2', df_table.head(2))
+  #  if subcat and (subcat != 'all'):  # if dropdown
+    if subcat and (subtotal != 'all_subcats'): 
+        df_table = df_table[df_table["Description"] == subcat]             
+        #  print('3', df_table.head(2))
        
-        # subtotal         
-        if subcat:
-            df_table = (
-                df_table.groupby(["ST", "ID code", "ID name", "Category", "Description"]).sum().reset_index()
-            ) 
-           # print('7', df_table.head(2))
-        elif cat: 
-            df_table = df_table.groupby(["ST","ID code", "ID name", "Category"]).sum().reset_index()
-           # print('6', df_table.head(2))
-        else: 
-            df_table = df_table.groupby([ "ST", "ID code", "ID name"]).sum().reset_index()
-           # print('5', df_table.head(2))
+    # subtotal         
+    #if subcat:
+    if subcat or (subtotal == 'all_subcats'):
+        df_table = (
+            df_table.groupby(["ST", "ID code", "ID name", "Category", "Description"]).sum().reset_index()
+        ) 
+        # print('7', df_table.head(2))
+   # elif cat: 
+    elif cat or (subtotal == 'all_cats'):
+        df_table = df_table.groupby(["ST","ID code", "ID name", "Category"]).sum().reset_index()
+        # print('6', df_table.head(2))
+    else: 
+        df_table = df_table.groupby([ "ST", "ID code", "ID name"]).sum().reset_index()
+        # print('5', df_table.head(2))
     
 
 
-        # remove empty cols
-        df_table = df_table.loc[:, (df_table != 0).any(axis=0)]        
+    # remove empty cols
+    df_table = df_table.loc[:, (df_table != 0).any(axis=0)]        
 
-        # add sparklines
-        df_table["sparkline_Per Capita"] = make_sparkline(df_table, "Per Capita", YEARS)
+    # add sparklines
+    df_table["sparkline_Per Capita"] = make_sparkline(df_table, "Per Capita", YEARS)
        
-        if any("Per Student" in s for s in df_table.columns):        
-             df_table["sparkline_Per Student"] = make_sparkline(df_table, "Per Student", YEARS)
+    if any("Per Student" in s for s in df_table.columns):        
+            df_table["sparkline_Per Student"] = make_sparkline(df_table, "Per Student", YEARS)
         
-        # filter based on year slider
-        df_table = year_filter(df_table, str(year))
-
-        data = df_to_data(df_table)
-       
-    
-    #test title needed?
-    title=''
-    return data, title
+    # filter based on year slider
+    df_table = year_filter(df_table, str(year))
+          
+   
+    return df_to_data(df_table)
 
 
 
@@ -787,57 +822,83 @@ def update_city_table(exp_or_rev, year, cat, subcat,  dff_exp, dff_rev):
 @app.callback(
    [       
        Output('city_cards_container', 'children'),  
-       Output('city_cards_title', 'children')
+       Output('city_cards_title', 'children'),
+       Output('store_clicked_on', 'data')
     ],
     [   
         Input('store_city_exp_or_rev', 'data'),
         Input('selected_cities_dropdown', 'value'), 
         Input('city_year', 'value'),
         Input('store_dff_exp', 'data'),
-        Input('store_dff_rev', 'data')       
+        Input('store_dff_rev', 'data'),
+        Input({'type': 'sunburst_output', 'index': ALL}, 'clickData'),
+        Input('store_selected_cities', 'data')
     ],
 )
-def update_city_cards(exp_or_rev, selected_cities, year, dff_exp, dff_rev):   
-    
+def update_city_cards(exp_or_rev, selected_cities, year, dff_exp, dff_rev, clickData, city_dict): 
     if selected_cities == []:
-        children = []
-        title= []
-    else:    
-        title1= ' Expenditures for selected cities, counties and districts'
-        title2= ' Revenue for selected cities, counties or districts '
-        title = str(year)+ title1   if exp_or_rev == 'expenditures' else str(year) + title2 
-        df_cards = pd.DataFrame(dff_exp if exp_or_rev == 'expenditures' else dff_rev)
-        df_cards = year_filter(df_cards, str(year))
-       
+        return [], [], None
 
-        children=[]
-        for city_code in selected_cities:
-            df_city = df_cards[df_cards['ID code'] == city_code]
-            new_element = html.Div(
-               # style={'width': '25%', 'display': 'inline-block', 'outline': 'thin lightgrey solid', 'padding': 10},
-                style={'width': '25%', 'display': 'inline-block', 'padding': 10},
-                children=[
-                    dcc.Graph(
-                        id={
-                            'type': 'sunburst_output',
-                            'index': city_code
-                        },
-                        style={'height': 200},
-                        figure=make_sunburst(
-                                        df_city,
-                                        ["ID name", "Category"],
-                                        df_city["Amount"],
-                                        '',
-                                    ),
-                    ),
-                    html.Div(
-                        id={'type':"state_stats", 'index': city_code},
-                        children=make_stats_table(df_city)                           
-                    ),                           
-                ]
-            )
-            children.append(new_element)
-    return children, title
+    title_exp = ' Expenditures for selected cities, counties and districts'
+    title_rev = ' Revenue for selected cities, counties or districts '
+    title = str(year)+ title_exp   if exp_or_rev == 'expenditures' else str(year) + title_rev
+    df_cards = pd.DataFrame(dff_exp if exp_or_rev == 'expenditures' else dff_rev)
+    df_cards = year_filter(df_cards, str(year))
+  
+    categories = list(du.revenue_cats) + list(du.expenditure_cats)
+    path =   ["ID name", "Category"] # default if no click data
+    clicked_on = None
+
+    # Find segment clicked on in sunburst
+    input_id = dash.callback_context.triggered[0]['prop_id']    
+    if 'index' in input_id:        
+        ID_name = city_dict[input_id.split('"')[3]]       
+        for points in clickData:           
+            if points:
+                print(points['points'][0])
+                if ID_name==points['points'][0]['root']:
+                    clicked_on = points['points'][0]['label']  
+                    if (df_cards['ID name'] ==clicked_on).any():                        
+                         path =   ["ID name", "Category"] # default if no click data
+                         clicked_on = None
+                        
+                    elif (df_cards['Description'] ==clicked_on).any():
+                        return  dash.no_update, dash.no_update, clicked_on
+                    else:
+                        path = ["ID name", "Description"]
+                        title = title + ': ' + clicked_on
+
+    children=[]
+    for city_code in selected_cities:
+        df_city = df_cards[df_cards['ID code'] == city_code]
+        if clicked_on:
+            df_city = df_cards[(df_cards['ID code'] == city_code) & (df_cards['Category'] == clicked_on)]
+        new_element = html.Div(
+            # style={'width': '25%', 'display': 'inline-block', 'outline': 'thin lightgrey solid', 'padding': 10},
+            style={'width': '25%', 'display': 'inline-block', 'padding': 10},
+            children=[
+                dcc.Graph(
+                    id={
+                        'type': 'sunburst_output',
+                        'index': city_code
+                    },
+                    style={'height': 200},
+                    figure=make_sunburst(
+                                    df_city,
+                                    path, 
+                                    df_city["Per Capita"],
+                                    '',
+                                ),
+                ),
+                html.Div(
+                    id={'type':"state_stats", 'index': city_code},
+                    children=make_stats_table(df_city)                           
+                ),                           
+            ]
+        )
+        children.append(new_element)
+    return children, title, clicked_on
+
 
 
 

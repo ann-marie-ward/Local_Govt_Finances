@@ -159,7 +159,7 @@ print('starting GID')
 ###############  Helper functions for ID File #################
 
 # excel spreadsheet is a list of all city names in the US
-#  make a list of all cities that end with the word "City"
+#  make a list of all cities that end with the word "City" "Village"
 df = pd.read_excel(
         DATA_PREP_PATH.joinpath('city_names.xlsx'))
 
@@ -167,17 +167,25 @@ df['City'] = df['City'].astype(str).str.upper()
 df = df[df['City'].str.endswith(' CITY')]
 citycity= df['City'].unique()
 
+df = df[df['City'].str.endswith(' VILLAGE')]
+village = df['City'].unique()
+
+
 def fix_name(name):
     ''' corrects city name in Fin_GID file
 
     For some strange reason, all of the cities and towns end with the word "City" or "Town"
+    or "Village"
     ie Seattle is Seattle City.  This removes the extra "City" but it can't remove the 
     "City" from places like "New York City"
     '''
-    if name in citycity:
+    if name in citycity or name in village:
         return name
     else:
-        return name[0:-5] if name.endswith(' CITY') or name.endswith(' TOWN') else name
+        name = name[0:-5] if name.endswith(' CITY') or name.endswith(' TOWN') else name
+        name = name[0:-8] if name.endswith(' VILLAGE') else name
+        name = name[0:-9] if name.endswith(' TOWNSHIP') else name
+        return name
 
  
 ###################  ID File   #################################
