@@ -1,7 +1,22 @@
-
-
 """ 
 This module reads the census files and cleans the data. 
+
+It only needs to be run if data files are updated.  (approx annually)
+
+Update the YEARS variable when new data is added
+
+Read notes in each function to help with data cleaning.  Files are different each year.  sigh. 
+
+
+The app(index.py) only need the files in the data folder as input. 
+
+Note:  as of Aug 2020 fin_xxxx.pickle files are intermediate files used to create df_exp and df_rev.
+       they are not yet used in the app.   May use in future to create full report rather than
+       just the exp and rev reports. But for now, to save space they are not being pickled so they
+       are not uploaded to  pythonanywhere
+
+
+*****    DATA SOURCES  ********
 
 Annual Survey of State and Local Governments
 
@@ -24,17 +39,37 @@ https://www.census.gov/programs-surveys/gov-finances/technical-documentation.htm
 
 
 
-It only needs to be run if data files are updated.  (approx annually)
+*****  SUMMARY OF INPUT FILES  ***********
 
-Update the YEARS variable when new data is added
+From these links, the following files are used:
+   1) methodology_for_summary_tabulations.xlsx
 
-Read notes in each function to help with data cleaning.  Files are different each year.  sigh. 
+   2) 2017FinEstDAT_02202020modp_pu.txt
+      2016FinEstDAT_10162019modp_pu.txt
+      2015FinEstDAT_10162019modp_pu.txt
+      2014FinEstDAT_10162019modp_pu.txt
 
+      city_names.xlsx (input file only)
+   3) Fin_GID_2017.txt
+      Fin_GID_2016.txt
+      Fin_GID_2015.txt
+      Fin_GID_2014.txt
+
+
+******  SUMMARY OF OUTPUT FILES  - Used as app input files
 
 Output:  Pickled files for:
+  1) df_summary.pickle
 
+  2) fin2017.pickle
+     fin2016.pickle
+     fin2015.pickle
+     fin2014.pickle
+  
+  3) Fin_GID.pickle
 
-
+  4) df_city_exp.pickle
+     df_city_rev.pickle     
 """
 
 
@@ -52,46 +87,42 @@ DATA_PATH = PATH.joinpath("./data").resolve()
 DATA_PREP_PATH = PATH.joinpath("./data_prep_city").resolve()
 
 
-
-
 ########  Important!!  Update this when new data is added.
 YEARS = [str(year) for year in range(2014, 2018)]
 
 
-
 ##############  Summary of which Item Codes are in each line of report ###########################
-'''
-File that summarizes which detail lines are included in each line of the State and Local Govt report.
-
-'''
 df_summary = pd.read_excel(
-        DATA_PREP_PATH.joinpath('methodology_for_summary_tabulations.xlsx'), skiprows=1).fillna(' ')
+    DATA_PREP_PATH.joinpath("methodology_for_summary_tabulations.xlsx"), skiprows=1
+).fillna(" ")
 
 # consolodate weird column headings in spreadsheet:
-description_columns = ['Description'] + ['Unnamed: '+ str(c) for c in range(2,11)]
-df_summary["Description"] = df_summary[description_columns].agg("".join, axis=1).str.strip()
+description_columns = ["Description"] + ["Unnamed: " + str(c) for c in range(2, 11)]
+df_summary["Description"] = (
+    df_summary[description_columns].agg("".join, axis=1).str.strip()
+)
 
-df_summary= df_summary[['Line', 'Description', 'Item Codes']]
-df_summary[['Line', 'Item Codes']] = df_summary[['Line', 'Item Codes']].astype('category')
-df_summary['Description'] = df_summary['Description'].astype('str')
+df_summary = df_summary[["Line", "Description", "Item Codes"]]
+df_summary[["Line", "Item Codes"]] = df_summary[["Line", "Item Codes"]].astype(
+    "category"
+)
+df_summary["Description"] = df_summary["Description"].astype("str")
 
-with open( DATA_PATH.joinpath('df_summary.pickle'), 'wb') as handle:
+with open(DATA_PATH.joinpath("df_summary.pickle"), "wb") as handle:
     pickle.dump(df_summary, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # create a dictionary from dff_summary because the df keeps the Item codes as
-#     an object but we need a list of categories to do the filter 
-dff_summary = df_summary[['Line', 'Item Codes']].set_index('Line') 
-summary_dict = dff_summary['Item Codes'].to_dict()
-for line in summary_dict:   
-    summary_dict[line] = summary_dict[line].split(', ')
+#     an object but we need a list of categories to do the filter
+dff_summary = df_summary[["Line", "Item Codes"]].set_index("Line")
+summary_dict = dff_summary["Item Codes"].to_dict()
+for line in summary_dict:
+    summary_dict[line] = summary_dict[line].split(", ")
 
-print('starting fin')
 
+print("starting fin")
 ################# Individual data file ####################################
-
-
 def read_individual_unit_data(file):
-    '''
+    """
     Individual Unit Data File (Public Use Format)																
     For 2017, the file name is 2017FinEstDAT_02202020modp_pu.txt
     ID   same as 'ID code' in Fin_GID_2017 - use this as key field
@@ -103,200 +134,187 @@ def read_individual_unit_data(file):
     Item code  (detail items that get aggregated to line numbers in State and Local Govt report)				
     Amount (in thousands of dollars);		
     Year of data						
-    Imputation type/item data flag	I= imputed R= reported				
-    '''
+    Imputation type/item data flag	I= imputed R= reported			
+    """
 
-
-    df_fin = pd.read_fwf( DATA_PREP_PATH.joinpath(file),
-                             widths=[14, 3, 12, 4, 1],
-                             header=None,
-                             dtype={ 0 : 'str',  1 : 'str',  2 : 'int64', 3 : 'int16', 4 : 'str' }
-                         )
+    df_fin = pd.read_fwf(
+        DATA_PREP_PATH.joinpath(file),
+        widths=[14, 3, 12, 4, 1],
+        header=None,
+        dtype={0: "str", 1: "str", 2: "int64", 3: "int16", 4: "str"},
+    )
     df_fin.columns = [
-        'ID code',
-        'Item code',
-        'Amount',
-        'Year',
-        'Imputation type',
+        "ID code",
+        "Item code",
+        "Amount",
+        "Year",
+        "Imputation type",
     ]
 
-    idcodes= list(df_fin['ID code'].unique())
+    idcodes = list(df_fin["ID code"].unique())
 
-    # makes  one summary report for each city.        
-    df_fin_line=[]
+    # makes  one summary report for each city.
+    df_fin_line = []
     for line in summary_dict:
-        df_fin['Line amount'] = df_fin[df_fin['Item code'].isin(summary_dict[line])]['Amount']
-        dff_fin = df_fin.groupby('ID code').sum().reset_index()
-        dff_fin= dff_fin[dff_fin['Line amount'] > 0]
-        dff_fin['Line'] = line
-        dff_fin = dff_fin[['ID code', 'Line', 'Line amount']]
+        df_fin["Line amount"] = df_fin[df_fin["Item code"].isin(summary_dict[line])][
+            "Amount"
+        ]
+        dff_fin = df_fin.groupby("ID code").sum().reset_index()
+        dff_fin = dff_fin[dff_fin["Line amount"] > 0]
+        dff_fin["Line"] = line
+        dff_fin = dff_fin[["ID code", "Line", "Line amount"]]
         df_fin_line.append(dff_fin)
-
     df_fin = pd.concat(df_fin_line)
-    df_fin.columns = ['ID code', 'Line', 'Amount']
-    
+    df_fin.columns = ["ID code", "Line", "Amount"]
     return df_fin
-  
+
+
 fin_filenames = {
-    '2017': '2017FinEstDAT_02202020modp_pu.txt',
-    '2016': '2016FinEstDAT_10162019modp_pu.txt',
-    '2015': '2015FinEstDAT_10162019modp_pu.txt',
-    '2014' : '2014FinEstDAT_10162019modp_pu.txt',                 
+    "2017": "2017FinEstDAT_02202020modp_pu.txt",
+    "2016": "2016FinEstDAT_10162019modp_pu.txt",
+    "2015": "2015FinEstDAT_10162019modp_pu.txt",
+    "2014": "2014FinEstDAT_10162019modp_pu.txt",
 }
-fin = {year: read_individual_unit_data(file)  for year, file in fin_filenames.items()}
+fin = {year: read_individual_unit_data(file) for year, file in fin_filenames.items()}
 
-# Save one file for each year since the whole fin dictionary is too large:
-for year in fin:
-    filename = ''.join(['fin_', year, '.pickle'])
-    with open( DATA_PATH.joinpath(filename), 'wb') as handle:
-        pickle.dump(fin[year], handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-
-print('starting GID')
+## Save one file for each year since the whole fin dictionary is too large:
+# for year in fin:
+#    filename = ''.join(['fin_', year, '.pickle'])
+#    with open( DATA_PATH.joinpath(filename), 'wb') as handle:
+#        pickle.dump(fin[year], handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-###############  Helper functions for ID File #################
+print("starting GID")
+###############  Helper functions for GID File #################
 
 # excel spreadsheet is a list of all city names in the US
 #  make a list of all cities that end with the word "City" "Village"
-df = pd.read_excel(
-        DATA_PREP_PATH.joinpath('city_names.xlsx'))
-
-df['City'] = df['City'].astype(str).str.upper()
-df = df[df['City'].str.endswith(' CITY')]
-citycity= df['City'].unique()
-
-df = df[df['City'].str.endswith(' VILLAGE')]
-village = df['City'].unique()
+df = pd.read_excel(DATA_PREP_PATH.joinpath("city_names.xlsx"))
+df["City"] = df["City"].astype(str).str.upper()
+df = df[df["City"].str.endswith(" CITY")]
+citycity = df["City"].unique()
+df = df[df["City"].str.endswith(" VILLAGE")]
+village = df["City"].unique()
 
 
 def fix_name(name):
-    ''' corrects city name in Fin_GID file
+    """ corrects city name in Fin_GID file
 
     For some strange reason, all of the cities and towns end with the word "City" or "Town"
     or "Village"
     ie Seattle is Seattle City.  This removes the extra "City" but it can't remove the 
     "City" from places like "New York City"
-    '''
+    """
     if name in citycity or name in village:
         return name
     else:
-        name = name[0:-5] if name.endswith(' CITY') or name.endswith(' TOWN') else name
-        name = name[0:-8] if name.endswith(' VILLAGE') else name
-        name = name[0:-9] if name.endswith(' TOWNSHIP') else name
+        name = name[0:-5] if name.endswith(" CITY") or name.endswith(" TOWN") else name
+        name = name[0:-8] if name.endswith(" VILLAGE") else name
+        name = name[0:-9] if name.endswith(" TOWNSHIP") else name
         return name
 
- 
-###################  ID File   #################################
+
+###################  GID File   #################################
 ##GID Directory Information File (Basic identifier information for corresponding finance survey)
 ## sample for 2017
-##  Use this to filter cities prior to showing data in city app
+## Use this to filter cities prior to showing data in city app
+
 
 def make_Fin_GID_dict(filename):
-
-    df_Fin_GID = pd.read_fwf( DATA_PREP_PATH.joinpath(filename), 
-                             widths=[14,64,35,2,3,5,9,2,7,2,2,2,4,2],
-                             header=None,
-                             dtype={ 0 : 'str', 
-                                    1 : 'str',
-                                    2 : 'object',
-                                    3 : 'category',
-                                    4 : 'category',
-                                    5 : 'category',
-                                    6 : 'object',
-                                    7 : 'object',
-                                    8 : 'object',
-                                    9 : 'object',
-                                    10 : 'str',
-                                    11 : 'category',
-                                    12 : 'object',
-                                    13 : 'object',                                
-                                    }
-                             )
-
+    df_Fin_GID = pd.read_fwf(
+        DATA_PREP_PATH.joinpath(filename),
+        widths=[14, 64, 35, 2, 3, 5, 9, 2, 7, 2, 2, 2, 4, 2],
+        header=None,
+        dtype={
+            0: "str",
+            1: "str",
+            2: "object",
+            3: "category",
+            4: "category",
+            5: "category",
+            6: "object",
+            7: "object",
+            8: "object",
+            9: "object",
+            10: "str",
+            11: "category",
+            12: "object",
+            13: "object",
+        },
+    )
     df_Fin_GID.columns = [
-        'ID code',						
-        'ID name',						
-        'County name',
-        'State code',
-        'County code',						
-        'Place code',						
-        'Population',						
-        'Population year',						
-        'Enrollment',						
-        'Enrollment year',						
-        'Function code for special districts',						
-        'School level code',						
-        'Fiscal year ending',						
-        'Survey year'
+        "ID code",
+        "ID name",
+        "County name",
+        "State code",
+        "County code",
+        "Place code",
+        "Population",
+        "Population year",
+        "Enrollment",
+        "Enrollment year",
+        "Function code for special districts",
+        "School level code",
+        "Fiscal year ending",
+        "Survey year",
     ]
-
     # don't include state level data
-    df_Fin_GID = df_Fin_GID.dropna(subset=['County name']) 
+    df_Fin_GID = df_Fin_GID.dropna(subset=["County name"])
 
-    df_Fin_GID['Enrollment'] = df_Fin_GID['Enrollment'].fillna(0).astype(int)
-    df_Fin_GID['Population'] = df_Fin_GID['Population'].fillna(0).astype(int)
-    df_Fin_GID['Function code for special districts'] = df_Fin_GID['Function code for special districts'].fillna(' ').str.strip()
-    df_Fin_GID['Function code for special districts'] = df_Fin_GID['Function code for special districts'].astype(str).fillna(' ')
+    df_Fin_GID["Enrollment"] = df_Fin_GID["Enrollment"].fillna(0).astype(int)
+    df_Fin_GID["Population"] = df_Fin_GID["Population"].fillna(0).astype(int)
+    df_Fin_GID["Function code for special districts"] = (
+        df_Fin_GID["Function code for special districts"].fillna(" ").str.strip()
+    )
+    df_Fin_GID["Function code for special districts"] = (
+        df_Fin_GID["Function code for special districts"].astype(str).fillna(" ")
+    )
 
-
-    
     # state code as defined in the docs is the first 2 digits of ID code, and this is
     # different than the "State code" column in this file (which includes territories).
-    df_Fin_GID['State'] = df_Fin_GID.loc[:, 'ID code'].str[:2]
-    state_name = [
-        du.code_state[state]
-        for state in df_Fin_GID['State']
-    ]
-    state_abbr = [
-        du.code_abbr[state]
-        for state in df_Fin_GID['State']
-    ]
-    df_Fin_GID.loc[:, 'State'] = state_name
-    df_Fin_GID.loc[:, 'ST'] = state_abbr   
+    df_Fin_GID["State"] = df_Fin_GID.loc[:, "ID code"].str[:2]
+    state_name = [du.code_state[state] for state in df_Fin_GID["State"]]
+    state_abbr = [du.code_abbr[state] for state in df_Fin_GID["State"]]
+    df_Fin_GID.loc[:, "State"] = state_name
+    df_Fin_GID.loc[:, "ST"] = state_abbr
+    df_Fin_GID["ID name"] = df_Fin_GID["ID name"].apply(fix_name)
 
-    df_Fin_GID['ID name'] = df_Fin_GID['ID name'].apply(fix_name)
-
-   
     special_districts = [
-        du.code_special_district.get(str(code), '')    
-        for code in df_Fin_GID['Function code for special districts']    
+        du.code_special_district.get(str(code), "")
+        for code in df_Fin_GID["Function code for special districts"]
     ]
-    df_Fin_GID.loc[:, 'Special districts'] = special_districts
+    df_Fin_GID.loc[:, "Special districts"] = special_districts
 
-
-    df_Fin_GID= df_Fin_GID[[
-         'ID code',	
-         'ST',
-         'State',
-        'ID name',						
-        'County name',    		
-        'Population',	
-        'Enrollment',	        
-        'Special districts',
-        'Survey year'
-        ]]
-
+    df_Fin_GID = df_Fin_GID[
+        [
+            "ID code",
+            "ST",
+            "State",
+            "ID name",
+            "County name",
+            "Population",
+            "Enrollment",
+            "Special districts",
+            "Survey year",
+        ]
+    ]
     return df_Fin_GID
 
-GID_filenames={
-                '2017':"Fin_GID_2017.txt", 
-               '2016':"Fin_GID_2016.txt",
-               '2015':"Fin_GID_2015.txt",
-               '2014':"Fin_GID_2014.txt"
-              }
 
-Fin_GID = {year:  make_Fin_GID_dict(file) for year, file in GID_filenames.items()}
+GID_filenames = {
+    "2017": "Fin_GID_2017.txt",
+    "2016": "Fin_GID_2016.txt",
+    "2015": "Fin_GID_2015.txt",
+    "2014": "Fin_GID_2014.txt",
+}
+Fin_GID = {year: make_Fin_GID_dict(file) for year, file in GID_filenames.items()}
 
-
-with open( DATA_PATH.joinpath('Fin_GID.pickle'), 'wb') as handle:
+with open(DATA_PATH.joinpath("Fin_GID.pickle"), "wb") as handle:
     pickle.dump(Fin_GID, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-print('starting df_exp and df_rev')
 
+print("starting df_exp and df_rev")
 ########################  make df_exp and df_rev ########################
-
 def make_df_report(df_fin, year, report):
     """  Make df for a single year of a report.   The report is a summary of  line numbers
          in each category as defined in data_utilities.py
@@ -317,313 +335,58 @@ def make_df_report(df_fin, year, report):
     if report == "revenue":
         report_cats = du.revenue_cats
     elif report == "expenditures":
-        report_cats = du.expenditure_cats     
-    
+        report_cats = du.expenditure_cats
+
     # add categories and only keep lines with categories
-    df_fin['Category'] = ''
-    for cat in report_cats:         
-        df_fin.loc[df_fin['Line'].isin(report_cats[cat]), ['Category']] = cat        
-    df_report = df_fin[df_fin['Category'] != '']
+    df_fin["Category"] = ""
+    for cat in report_cats:
+        df_fin.loc[df_fin["Line"].isin(report_cats[cat]), ["Category"]] = cat
+    df_report = df_fin[df_fin["Category"] != ""]
 
     # add columns from df_Fin_GID
     df_report = df_report.merge(Fin_GID[year], on="ID code")
 
     # keep these columns
-    columns = ['Line', 'Category', 'ST', 'ID name', 'Amount', 'ID code', 'Population', 'Enrollment']
+    columns = [
+        "Line",
+        "Category",
+        "ST",
+        "ID name",
+        "Amount",
+        "ID code",
+        "Population",
+        "Enrollment",
+    ]
     df_report = df_report[columns]
-    df_report['Year'] = year
-      
+    df_report["Year"] = year
     return df_report
 
 
-city_exp = {year:  make_df_report(fin[year], year, 'expenditures') for year in YEARS}
+city_exp = {year: make_df_report(fin[year], year, "expenditures") for year in YEARS}
 df_city_exp = pd.concat(list(city_exp.values()))
 
-
-city_rev = {year:  make_df_report(fin[year], year, 'revenue') for year in YEARS}
+city_rev = {year: make_df_report(fin[year], year, "revenue") for year in YEARS}
 df_city_rev = pd.concat(list(city_rev.values()))
 
-
-with open( DATA_PATH.joinpath('df_city_exp.pickle'), 'wb') as handle:
+with open(DATA_PATH.joinpath("df_city_exp.pickle"), "wb") as handle:
     pickle.dump(df_city_exp, handle, protocol=pickle.HIGHEST_PROTOCOL)
-with open( DATA_PATH.joinpath('df_city_rev.pickle'), 'wb') as handle:
+with open(DATA_PATH.joinpath("df_city_rev.pickle"), "wb") as handle:
     pickle.dump(df_city_rev, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-print('ready')
+print("ready")
 
 
-
-#############################
-
-#Another version thats too slow!
-
-#idcodes= list(df_fin['ID code'].unique())
-
-#summary_line = []
-#for id in idcodes:
-#    df_city = df_fin[df_fin['ID code'] == id]
-#    for line in summary_dict:
-#        line_amount = df_city[df_city['Item code'].isin(summary_dict[line])]['Amount'].sum()
-#        summary_line.append[id, line, line_amount]
-
-
-
-##########################   works but takes too long ######################################
-  
-## create a dictionary from dff_summary because the df keeps the Item codes as
-##     an object but we need a list of categories to do the filter 
-#dff_summary = df_summary[['Line', 'Item Codes']].set_index('Line') 
-#summary_dict = dff_summary['Item Codes'].to_dict()
-#for line in summary_dict:   
-#    summary_dict[line] = summary_dict[line].split(', ')
-
- 
-#dff_summary = df_summary[['Line', 'Description']]
-#def add_city(city_idcode):
-#    ''' Adds a city column to the summary report '''
-#    city_col = []
-#    dff_fin = df_fin[df_fin['ID code'] == str(city_idcode)]
-#    for line in summary_dict:
-#        df_line= dff_fin[dff_fin['Item code'].isin(summary_dict[line])]
-#        city_col.append(df_line['Amount'].sum())
-#    return city_col
-
-
-#def make_df_report(df, year, report):
-#    """  Make df for a single year of a report.   The report is summarized based on categories
-#        as defined in data_utilities.py
-    
-#        This creates a df of expenditure or revenue categories consitant with:
-#        https://www.census.gov/library/visualizations/interactive/state-local-snapshot.html
-#        This is a helper function to create the complete expenditure dataset for all years
-
-#     Args:  
-#        df (dataframe) : created from df_summary for a year
-#        year  (int)  :  4 digit year
-#        report (str) : type of report
-
-#    Returns:
-#        A dataframe in a shape needed for the sunburst and treemap charts for a single year
-#    """
-
-#    if report == "revenue":
-#        report_cats = du.revenue_cats
-#    elif report == "expenditures":
-#        report_cats = du.expenditure_cats
-      
-#    # add report categories to the summary df
-#    dff = df.copy()
-#    for cat in report_cats:
-#        for line_no in report_cats[cat]:
-#            dff.loc[dff[("Line")] == line_no, "Category"] = cat
-
-#    # create a subset df that is only report categories 
-#    dff = dff.dropna(subset=[("Category")])
-#    df_report = pd.melt(
-#                dff,
-#                id_vars=["Line", "Category", "Description"],
-#                var_name="City/District",
-#                value_name="Amount",
-#            )
-   
-#    df_report = df_report[df_report['Amount'] > 0]
-
-#    # add columns from df_Fin_GID
-#    df_report = df_report.merge(Fin_GID[year], left_on="City/District", right_on="ID name")
-#    columns = ['Line', 'Category', 'Description', 'City/District', 'Amount', 'ID code', 'Population', 'Enrollment']
-#    df_report = df_report[columns]   
-
-#    df_report['Per Capita'] = (df_report['Amount'] / df_report['Population'] * 1000).fillna(0).replace([np.inf, -np.inf], 0)
-#    df_report['Per Student'] = (df_report['Amount'] / df_report['Enrollment'] * 1000).fillna(0).replace([np.inf, -np.inf], 0)
-#    df_report['Year'] = year
-      
-#    return df_report
-
-#df_fin = df_fin[['ID code', 'Item code','Amount_2017']]
-#df_fin.rename(columns={"Amount_2017": "Amount"}, inplace=True)
-
-#idcodes = list(Fin_GID['2017']['ID code'].unique())
-
-#def batch(lst, n):
-#    """Yield successive n-sized chunks from lst."""
-#    for i in range(0, len(lst), n):
-#        yield lst[i:i + n]
-
-
-
-#batch_no = 0
-#for city_batch in batch(idcodes, 50):
-#    print(city_batch)
-#    dff_summary = df_summary[['Line', 'Description']]
-#    for city in city_batch:
-#        dff_summary[city] = add_city(city)
-
-#    col = ['Line', 'Description'] + city_batch  
-
-#    exp = {batch_no: make_df_report(dff_summary[col], '2017', "expenditures")}
-
-#    rev = {batch_no: make_df_report(dff_summary[col], '2017', "revenue")}
-#    batch_no +=1
-#    print(batch_no)
-
-#with open( DATA_PATH.joinpath('exp.pickle'), 'wb') as handle:
-#    pickle.dump(exp, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-#with open( DATA_PATH.joinpath('rev.pickle'), 'wb') as handle:
-#    pickle.dump(rev, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    ##########################################################################################
-
-## 1 line total
-#df_line = marana[marana['Item code'].isin(summary_dict[4])]
-#line_total = df_line['Amount'].sum()
-
-# All tortured code - delete
-#rev_exp_lines = list(revenue_cats.values()) + list(expenditure_cats.values())
-#rev_exp_lines = [num for line in rev_exp_lines for num in line ]
-#df_summary = df_summary.loc[df_summary['Line'].isin(rev_exp_lines)]
-
-#summary_dict = df_summary['Item Codes'].astype(str).to_dict()
-#lc_values= [summary_dict[line_code].split(', ') for line_code in summary_dict]
-#keys = list(summary_dict)
-#for i, key in enumerate(keys):
-#    summary_dict[key] = lc_values[i]
-#print(lc_values)
-#df_summary['Item Codes1'] = lc_values
-#print(df_summary['Item Codes1'])
-
-#df_summary['Item Codes'] = df_summary['Item Codes'].str.split(', ', expand=False)
-#print(df_summary)
-
-
-
-
-
-
-#################### v2 #############################################
-
-#v2  df shape:  id code, item code , amount , line1, line2 line3.....
-#     then merge dff_Fin_GID
-
-
-
-##  sample - 1 line - works each is 1.4mb
-#line=1
-#df_fin[line] = 0
-#df_fin.loc[df_fin['Item code'].isin(summary_dict[line]), [line]] = df_fin['Amount']
-#dff = df_fin.groupby(by='ID code')[['Amount']].sum()
-#dff.columns = [line]
-
-#for line in summary_dict:
-#    df_fin[line] = 0
-#    df_fin.loc[df_fin['Item code'].isin(summary_dict[line]), [line]] = df_fin['Amount']
-#    dff = df_fin.groupby(by='ID code')[['Amount']].sum()
-#    dff.columns = [line]
-
-
-
-#def make_line(dffx,ln):
-#    dffx[ln] = 0
-#    dffx.loc[dff['Item code'].isin(summary_dict[ln]), [ln]] = dffx['Amount']
-#    dff1 = dffx.groupby(by='ID code')[['Amount']].sum()   
-#    return(dff1)
-
-#df_lst = []
-#for line in range(1, 15):
-#    df_lst.append(make_line(dff,line))
-
-#df_lst1 = []
-#for line in range(14,30):
-#    df_lst1.append(make_line(dff,line))
-
-#df_lst2 = []
-#for line in range(29,45):
-#    df_lst2.append(make_line(dff,line))
-
-#df_lst3 = []
-#for line in range(44,60):
-#    df_lst3.append(make_line(dff,line))
-
-#df_c = pd.concat([df_lst,df_lst1], axis=1)
-#del df_lst
-#del df_lst1
-#df_c1 = pd.concat([df_lst2,df_lst3], axis=1)
-#del df_lst2
-#del df_lst3
-
-#df_c3 = pd.concat([df_c1, df_c2], axis=1)
-#del df_c1
-#del df_c2
-
-## examples to reduce memory usage
-##df = pd.read_csv(
-##    "voters.csv", usecols=["First Name ", "Last Name "])
-##int8 can store integers from -128 to 127.
-##int16 can store integers from -32768 to 32767.
-##int64 can store integers from -9223372036854775808 to 9223372036854775807.
-##dtype={"Party Affiliation ": "category"}
-
-
-
-
-#####################################################################################
-
-# delete - this is in city_budget.py
-
-#### Sample usage - select a city and add it as a column in the df_summary.
-### this makes it simialr to the read_census file in the state and local app
-###  can only do for selected cities - takes too much memory to do all
-
-## create a dictionary from df_summary because the df keeps the Item codes as
-##     an object but we need a list of categories to do the filter 
-#dff_summary = df_summary[['Line', 'Item Codes']].set_index('Line')
-#summary_dict = dff_summary['Item Codes'].to_dict()
-#for line in summary_dict:   
-#    summary_dict[line] = summary_dict[line].split(', ')
- 
-
-
-## to make df smaller
-#dff_summary = df_summary[['Line', 'Item Codes']].set_index('Line')
-   
-## create a dictionary from dff_summary because the df keeps the Item codes as
-##     an object but we need a list of categories to do the filter 
-#summary_dict = dff_summary['Item Codes'].to_dict()
-#for line in summary_dict:   
-#    summary_dict[line] = summary_dict[line].split(', ')
-
- 
-
-#def add_city(city):
-#    ''' Adds a city column to the summary report '''
-#    city_col = []
-#    dff_fin = df_fin[df_fin['ID code'] == str(city)]
-#    for line in summary_dict:
-#        df_line= dff_fin[dff_fin['Item code'].isin(summary_dict[line])]
-#        city_col.append(df_line['Amount'].sum())
-#    return city_col
- 
-       
-
-
+# MY Notes
 ###############   READING DATA INTO PYTHON INTERACTIVE
 
-#MYDATA = r'C:\Users\amwar\source\repos\city_budgets\data\\'
-#MYCITYDATA = r'C:\Users\amwar\source\repos\city_budgets\data_prep_city\\'
+# MYDATA = r'C:\Users\amwar\source\repos\city_budgets\data\\'
+# MYCITYDATA = r'C:\Users\amwar\source\repos\city_budgets\data_prep_city\\'
 
 
 ## read pickle files from my dir
-#with open(MYDATA + 'df_city_city.pickle', 'rb') as handle:
+# with open(MYDATA + 'df_city_city.pickle', 'rb') as handle:
 #    df_city_city = pickle.load(handle)
 
 ## read excel files from my dir
-#df = pd.read_excel(MYCITYDATA + 'city_names.xlsx')
-
-
-
-
-
-
-
-   
+# df = pd.read_excel(MYCITYDATA + 'city_names.xlsx')

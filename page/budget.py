@@ -1,6 +1,4 @@
-
-
-    ## TODO - make sparksline table title a variable
+## TODO - make sparksline table title a variable
 
 import dash
 from dash.dependencies import Input, Output, State
@@ -39,15 +37,12 @@ with open(DATA_PATH.joinpath("df_rev.pickle"), "rb") as handle:
 with open(DATA_PATH.joinpath("census.pickle"), "rb") as handle:
     census = pickle.load(handle)
 
-#df_cen = census[2017]
+# df_cen = census[2017]
 
 
 # Update this when new data is added:
 YEARS = [str(year) for year in range(2012, 2018)]
 START_YR = "2017"
-
-
-   
 
 
 def get_col(col_name, year):
@@ -85,13 +80,15 @@ def read_census_pop():
     ## for some strange reason, the States had a "." at the start
     df_state_pop["State"] = df_state_pop["State"].str.replace(".", "")
     return df_state_pop
+
+
 df_pop = read_census_pop()
 
 
 ######################    Figures   ###########################################
 
 
-def make_sunburst(df, path, values, title):  
+def make_sunburst(df, path, values, title):
 
     fig = px.sunburst(
         df,
@@ -126,31 +123,34 @@ def make_sunburst(df, path, values, title):
 
 
 def make_choropleth(dff, title, state, year):
-    dff = dff.groupby(["ST"]).sum().reset_index().sort_values(get_col('Per Capita', year), ascending=False)
+    dff = (
+        dff.groupby(["ST"])
+        .sum()
+        .reset_index()
+        .sort_values(get_col("Per Capita", year), ascending=False)
+    )
 
     top3 = (
-        dff
-           .head(3)
-           .astype({get_col('Per Capita',year) : 'int'})
-           [['ST',get_col('Per Capita',year)]]          
-           .to_string(index=False, header=False)
-           .replace("\n", "<br>")
+        dff.head(3)
+        .astype({get_col("Per Capita", year): "int"})[
+            ["ST", get_col("Per Capita", year)]
+        ]
+        .to_string(index=False, header=False)
+        .replace("\n", "<br>")
     )
     bot3 = (
-        dff
-           .tail(3)
-           .astype({get_col('Per Capita',year) : 'int'})
-           [['ST',get_col('Per Capita',year)]]          
-           .to_string(index=False, header=False)
-           .replace("\n", "<br>")
+        dff.tail(3)
+        .astype({get_col("Per Capita", year): "int"})[
+            ["ST", get_col("Per Capita", year)]
+        ]
+        .to_string(index=False, header=False)
+        .replace("\n", "<br>")
     )
 
     fig = go.Figure(
         data=go.Choropleth(
             locations=dff["ST"],  # Spatial coordinates
-            z=dff[get_col("Per Capita", year)].astype(
-                int
-            ),  # Data to be color-coded
+            z=dff[get_col("Per Capita", year)].astype(int),  # Data to be color-coded
             name="Per Capita",
             text=dff["ST"],
             locationmode="USA-states",  # set of locations match entries in `locations`
@@ -193,19 +193,19 @@ def make_choropleth(dff, title, state, year):
                 x=1,
                 y=1,
                 showarrow=False,
-                text='Top 3: <br>' + top3,
+                text="Top 3: <br>" + top3,
                 xref="paper",
-                yref="paper"
+                yref="paper",
             ),
             dict(
                 x=1,
                 y=0,
                 showarrow=False,
-                text='Bottom 3: <br>' + bot3,
+                text="Bottom 3: <br>" + bot3,
                 xref="paper",
-                yref="paper"
+                yref="paper",
             ),
-        ]
+        ],
     )
 
     return fig
@@ -213,12 +213,23 @@ def make_choropleth(dff, title, state, year):
 
 #####################  figure and data summary div components ################
 
+
 def make_stats_table(population, dff_exp, selected, year):
     per_capita = dff_exp[get_col("Per Capita", year)].astype(float).sum() / selected
     total_exp = dff_exp[get_col("Amount", year)].astype(float).sum()
 
-    row1 = html.Tr([html.Td("{:0,.0f}".format(population), style={'text-align':'right'}), html.Td("Population")])
-    row2 = html.Tr([html.Td("${:0,.0f}".format(per_capita), style={'text-align':'right'}), html.Td("Per Capita")])
+    row1 = html.Tr(
+        [
+            html.Td("{:0,.0f}".format(population), style={"text-align": "right"}),
+            html.Td("Population"),
+        ]
+    )
+    row2 = html.Tr(
+        [
+            html.Td("${:0,.0f}".format(per_capita), style={"text-align": "right"}),
+            html.Td("Per Capita"),
+        ]
+    )
     # row3 = html.Tr([html.Td("${:0,.0f}".format(total_exp)), html.Td("Total")])
 
     table_body = [html.Tbody([row2, row1])]
@@ -327,11 +338,7 @@ map = html.Div(
         dcc.Graph(
             id="map",
             figure=make_choropleth(
-                df_exp,
-                str(START_YR) + " Per Capita Expenditures",
-                "Alabama",
-                START_YR,
-                
+                df_exp, str(START_YR) + " Per Capita Expenditures", "Alabama", START_YR,
             ),
             style={"height": "400px"},
         )
@@ -356,17 +363,19 @@ def make_sparkline(dff, spark_col, spark_yrs):
     """
 
     # select columns for sparkline df
-    spark_cols = ["".join([spark_col, "_", str(year)]) for year in spark_yrs]    
+    spark_cols = ["".join([spark_col, "_", str(year)]) for year in spark_yrs]
     df_spark = dff[spark_cols].copy()
 
-    # normalize between 0 and 100  ( (x-x.min)/ (x.max-x.min)*100    
-    min = df_spark.min(axis=1)   
-    max = df_spark.max(axis=1)   
-    df_spark = df_spark[spark_cols].sub(min, axis="index").div((max-min), axis='index') * 100
+    # normalize between 0 and 100  ( (x-x.min)/ (x.max-x.min)*100
+    min = df_spark.min(axis=1)
+    max = df_spark.max(axis=1)
+    df_spark = (
+        df_spark[spark_cols].sub(min, axis="index").div((max - min), axis="index") * 100
+    )
 
     df_spark.fillna(0, inplace=True)
 
-    #putting it all together:
+    # putting it all together:
     df_spark["spark"] = df_spark.astype(int).astype(str).agg(",".join, axis=1)
     df_spark["start"] = dff[spark_cols[0]].astype(int).astype(str)
     df_spark["{"] = "{"
@@ -418,7 +427,7 @@ def make_table(dff):
                 export_format="xlsx",
                 export_headers="display",
                 is_focused=False,
-                cell_selectable =False,
+                cell_selectable=False,
                 style_table={
                     "overflowY": "scroll",
                     "border": "thin lightgrey solid",
@@ -525,7 +534,7 @@ category_dropdown = html.Div(
             options=[{"label": "All Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in df_exp["Category"].unique()],
             placeholder="Select a category",
-            value='Public Safety'
+            value="Public Safety",
         )
     ],
     className="px-2",
@@ -538,8 +547,8 @@ sub_category_dropdown = html.Div(
             options=[{"label": "All Sub Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in df_exp["Description"].unique()],
             placeholder="Select a sub category",
-            style={'font-size' : '90%'},
-            value='Police protection'
+            style={"font-size": "90%"},
+            value="Police protection",
         )
     ],
     className="px-2",
@@ -559,7 +568,6 @@ state_local_dropdown = html.Div(
     ],
     className="px-2",
 )
-
 
 
 #####################   Header Cards and Markdown #############################
@@ -629,7 +637,7 @@ layout = dbc.Container(
                                 + [sub_category_dropdown]
                                 + [state_local_dropdown]
                                 + [year_slider],
-                              #  + [table_subtotal],
+                                #  + [table_subtotal],
                                 className="m-1 border",
                             ),
                             width={"size": 2, "order": 1},
@@ -677,13 +685,13 @@ layout = dbc.Container(
 ####### update revenue or expenses
 @app.callback(
     [
-        Output("store_exp_or_rev", "data"), 
+        Output("store_exp_or_rev", "data"),
         Output("category_dropdown", "options"),
         Output("category_dropdown", "value"),
         Output("state_local_dropdown", "value"),
     ],
     [Input("expenditures", "n_clicks"), Input("revenue", "n_clicks")],
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_exp_or_rev(exp, rev):
     ctx = dash.callback_context
@@ -691,8 +699,9 @@ def update_exp_or_rev(exp, rev):
 
     dff = df_rev if input_id == "revenue" else df_exp
 
-    options = ([{"label": "All Categories", "value": "all"}] 
-              + [{"label": c, "value": c} for c in dff["Category"].unique()])
+    options = [{"label": "All Categories", "value": "all"}] + [
+        {"label": c, "value": c} for c in dff["Category"].unique()
+    ]
 
     return "Revenue" if input_id == "revenue" else "Expenditures", options, None, None
 
@@ -707,7 +716,6 @@ def update_state_dropdown(clickData):
         return du.abbr_state[click_state]
 
 
-
 ##### updates sub category dropdown
 @app.callback(
     [
@@ -715,23 +723,24 @@ def update_state_dropdown(clickData):
         Output("subcategory_dropdown", "value"),
     ],
     [Input("category_dropdown", "value"), Input("store_exp_or_rev", "data")],
-     prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_sub_category_dropdown(cat, exp_or_rev):
-    
+
     dff = df_exp if exp_or_rev == "Expenditures" else df_rev
 
-    if (cat is None) or (cat == 'all'):
+    if (cat is None) or (cat == "all"):
 
-        options=([{"label": "All Sub Categories", "value": "all"}] 
-               + [{"label": s, "value": s} for s in dff["Description"].unique()])
+        options = [{"label": "All Sub Categories", "value": "all"}] + [
+            {"label": s, "value": s} for s in dff["Description"].unique()
+        ]
     else:
         subcats = dff[dff["Category"] == cat]
-        options = ([{"label": "All Sub Categories", "value": "all"}] 
-                  + [{"label": s, "value": s} for s in subcats["Description"].unique()])
+        options = [{"label": "All Sub Categories", "value": "all"}] + [
+            {"label": s, "value": s} for s in subcats["Description"].unique()
+        ]
 
     return options, None
-
 
 
 #######  Update Sunburst Figures  #############################################
@@ -741,7 +750,7 @@ def update_sub_category_dropdown(cat, exp_or_rev):
 @app.callback(
     [Output("sunburst_usa", "figure"), Output("usa_stats", "children")],
     [Input("year", "value"), Input("store_exp_or_rev", "data")],
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_usa(year, exp_or_rev):
     year = str(year)
@@ -821,10 +830,8 @@ def update_mystate(mystate, year, exp_or_rev):
         Input("category_dropdown", "value"),
         Input("subcategory_dropdown", "value"),
         Input("state_local_dropdown", "value"),
-       
     ],
     [State("store_exp_or_rev", "data")],
-    
 )
 def update_map(__, year, state, cat, subcat, local, exp_or_rev):
     print(state, cat, subcat, local)
@@ -834,65 +841,58 @@ def update_map(__, year, state, cat, subcat, local, exp_or_rev):
     update_title = " ".join([str(year), exp_or_rev, "Per Capita by State"])
     sunburst_title = " ".join([str(year), exp_or_rev, "Per Capita All States"])
 
-
-    # filter 
-    if state != "USA": 
-        dff_table = ( 
-            dff_table[dff_table["State"] == state] 
-            if state 
-            else dff_table[dff_table["State"] == "Alabama"] 
-        ) 
-        dff_sunburst = dff_table.copy() 
-        sunburst_title = " ".join([str(year), exp_or_rev, state]) 
-        print('1', dff_table.head(2))
-  
-    if cat and (cat != 'all'): 
-        dff_table = dff_table[dff_table["Category"] == cat] 
-        dff_map = dff_map[dff_map["Category"] == cat] 
-        update_title = " ".join([str(year), exp_or_rev, cat]) 
-        print('2', dff_table.head(2))
-
-
-
-    if subcat and (subcat != 'all'): 
-        dff_table = dff_table[dff_table["Description"] == subcat] 
-        dff_map = dff_map[dff_map["Description"] == subcat] 
-        update_title = " ".join([str(year), exp_or_rev, subcat]) 
-        print('3', dff_table.head(2))
-    if local and (local != 'all'): 
-        dff_table = dff_table[dff_table["State/Local"] == local] 
-        dff_map = dff_map[dff_map["State/Local"] == local] 
-        update_title = " ".join([update_title, "and", local, "gvmt only"]) 
-        print('4', dff_table.head(2))
-
-    # subtotal 
-    if local: 
-        dff_table = ( 
-            dff_table.groupby(["State", "Category", "Description", "State/Local"]) 
-            .sum() 
-            .reset_index() 
+    # filter
+    if state != "USA":
+        dff_table = (
+            dff_table[dff_table["State"] == state]
+            if state
+            else dff_table[dff_table["State"] == "Alabama"]
         )
-        print('8', dff_table.head(2))
-    elif subcat: 
-        dff_table = ( 
-            dff_table.groupby(["State", "Category", "Description"]).sum().reset_index() 
-        ) 
-        print('7', dff_table.head(2))
+        dff_sunburst = dff_table.copy()
+        sunburst_title = " ".join([str(year), exp_or_rev, state])
+        print("1", dff_table.head(2))
 
-    elif cat: 
-        dff_table = dff_table.groupby(["State", "Category"]).sum().reset_index() 
-        print('6', dff_table.head(2))
+    if cat and (cat != "all"):
+        dff_table = dff_table[dff_table["Category"] == cat]
+        dff_map = dff_map[dff_map["Category"] == cat]
+        update_title = " ".join([str(year), exp_or_rev, cat])
+        print("2", dff_table.head(2))
 
-    else: 
-        dff_table = dff_table.groupby(["State"]).sum().reset_index() 
-        print('5', dff_table.head(2))
-    
+    if subcat and (subcat != "all"):
+        dff_table = dff_table[dff_table["Description"] == subcat]
+        dff_map = dff_map[dff_map["Description"] == subcat]
+        update_title = " ".join([str(year), exp_or_rev, subcat])
+        print("3", dff_table.head(2))
+    if local and (local != "all"):
+        dff_table = dff_table[dff_table["State/Local"] == local]
+        dff_map = dff_map[dff_map["State/Local"] == local]
+        update_title = " ".join([update_title, "and", local, "gvmt only"])
+        print("4", dff_table.head(2))
 
-   
+    # subtotal
+    if local:
+        dff_table = (
+            dff_table.groupby(["State", "Category", "Description", "State/Local"])
+            .sum()
+            .reset_index()
+        )
+        print("8", dff_table.head(2))
+    elif subcat:
+        dff_table = (
+            dff_table.groupby(["State", "Category", "Description"]).sum().reset_index()
+        )
+        print("7", dff_table.head(2))
+
+    elif cat:
+        dff_table = dff_table.groupby(["State", "Category"]).sum().reset_index()
+        print("6", dff_table.head(2))
+
+    else:
+        dff_table = dff_table.groupby(["State"]).sum().reset_index()
+        print("5", dff_table.head(2))
+
     dff_table["sparkline"] = make_sparkline(dff_table, "Per Capita", YEARS)
     dff_table = table_yr(dff_table, str(year))
-
-    
 
     # update sunburst
     figure = make_sunburst(
@@ -906,7 +906,6 @@ def update_map(__, year, state, cat, subcat, local, exp_or_rev):
         make_choropleth(dff_map, update_title, state, str(year)),
         dff_table.to_dict("records"),
         figure,
-
     )
 
 
@@ -914,18 +913,16 @@ if __name__ == "__main__":
     app.run_server(debug=True)
 
 
-
-    
 ######## update subtotal selection with dropdown
-#@app.callback(
+# @app.callback(
 #    Output("table_subtotal", "value"),
 #    [
 #        Input("category_dropdown", "value"),
 #        Input("subcategory_dropdown", "value"),
 #        Input("state_local_dropdown", "value"),
 #    ],
-#)
-#def update_subtotals(cat, subcat, local):
+# )
+# def update_subtotals(cat, subcat, local):
 #    if local:
 #        return "local"
 #    if subcat:
@@ -936,7 +933,7 @@ if __name__ == "__main__":
 #        return "state"
 
 
-#table_subtotal = html.Div(
+# table_subtotal = html.Div(
 #    [
 #        html.Div("Include:", style={"font-weight": "bold"}),
 #        dcc.RadioItems(
@@ -954,5 +951,4 @@ if __name__ == "__main__":
 #        ),
 #    ],
 #    className="pt-4 p-2 border-bottom",
-#)
-
+# )

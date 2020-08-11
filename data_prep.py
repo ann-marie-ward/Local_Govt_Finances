@@ -1,5 +1,3 @@
-
-
 """ 
 This module reads the census files and cleans the data. 
 
@@ -94,17 +92,16 @@ census = {
 
 # test and sample usage
 x = census[2016]
-#print(x["Description"])
-print(' Census excel spreadsheets processed.')
-print('Working on expenditures')
+# print(x["Description"])
+print(" Census excel spreadsheets processed.")
+print("Working on expenditures")
 
 
 #      Note - this pickle file currently isn't used in other programs - so far, only the
 #             revenue and expenditure summaries are used
 #
-with open( DATA_PATH.joinpath('census.pickle'), 'wb') as handle:
+with open(DATA_PATH.joinpath("census.pickle"), "wb") as handle:
     pickle.dump(census, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
 
 
 ######################  Read Population by State  ################################
@@ -134,8 +131,8 @@ def pop_by_yr(year):
 df_state_code = pd.DataFrame(du.state_abbr.items(), columns=["State", "ST"])
 
 
-
 ##############  make df based on categories defined in data_utitlities   #####################################
+
 
 def make_df_report(df, year, report):
     """ Make df for a single year of a report.   The report is summarized based on categories
@@ -153,7 +150,7 @@ def make_df_report(df, year, report):
     Returns:
         A dataframe in a shape needed for the sunburst and treemap charts for a single year
     """
-     
+
     if report == "revenue":
         report_cats = du.revenue_cats
     elif report == "expenditures":
@@ -168,7 +165,6 @@ def make_df_report(df, year, report):
     # create a subset df that only includes categories in report and exclued US total
     dff = dff.dropna(subset=[("category", "category")])
     dff = dff.drop("United States Total", level=0, axis=1)
-    
 
     # Note:  We only need State and Local, so that's:
     #        columns 2 and 3 for each State in 20017 and 2012
@@ -210,9 +206,7 @@ def make_df_report(df, year, report):
     df_pop = pop_by_yr(year)
     # include popuation and per capita amounts
     df_report = df_report.join(df_pop.set_index("State"), on="State")
-    df_report["Per Capita"] = (
-        df_report.Amount / df_report["Population"] * 1000
-    )
+    df_report["Per Capita"] = df_report.Amount / df_report["Population"] * 1000
 
     df_report = df_report.sort_values(
         by=["State", "Category", "Description", "State/Local"]
@@ -220,40 +214,51 @@ def make_df_report(df, year, report):
 
     df_report["Amount"] = df_report["Amount"].astype(float)
     df_report["Per Capita"] = df_report["Per Capita"].astype(float)
-    df_report['Year'] = str(year)
+    df_report["Year"] = str(year)
 
     return df_report
 
 
 ###############  Create a df for expenditures with all years  ########################
 
-expenditures = {year: make_df_report(census[year], year, "expenditures") for year in YEARS}
+expenditures = {
+    year: make_df_report(census[year], year, "expenditures") for year in YEARS
+}
 df_exp = pd.concat(list(expenditures.values()))
 
 # make wide version (years as columns)
 df_exp = (
-    df_exp.groupby(["USA", "ST", "State", "Category", "Description", "State/Local", 'Year'])
-            .sum()
-            .unstack('Year')
-            .reset_index()
+    df_exp.groupby(
+        ["USA", "ST", "State", "Category", "Description", "State/Local", "Year"]
+    )
+    .sum()
+    .unstack("Year")
+    .reset_index()
 )
 
 # flatten multi-level column headings
-level0=df_exp.columns.get_level_values(0)
-level1=df_exp.columns.get_level_values(1)
-df_exp.columns = level0+'_'+level1
-df_exp = df_exp.rename(columns={'USA_': 'USA', 'ST_': 'ST', 'State_': 'State','Category_': 'Category',
-                                        'Description_': 'Description', "State/Local_": "State/Local" })
+level0 = df_exp.columns.get_level_values(0)
+level1 = df_exp.columns.get_level_values(1)
+df_exp.columns = level0 + "_" + level1
+df_exp = df_exp.rename(
+    columns={
+        "USA_": "USA",
+        "ST_": "ST",
+        "State_": "State",
+        "Category_": "Category",
+        "Description_": "Description",
+        "State/Local_": "State/Local",
+    }
+)
 df_exp.fillna(0, inplace=True)
 
 
-with open( DATA_PATH.joinpath('df_exp.pickle'), 'wb') as handle:
+with open(DATA_PATH.joinpath("df_exp.pickle"), "wb") as handle:
     pickle.dump(df_exp, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-print('df_exp, the expenditures df is saved as a pickle file in  \data ')
-print('working on revenues')
+print("df_exp, the expenditures df is saved as a pickle file in  \data ")
+print("working on revenues")
 ##################  End Expenditures   ########################################
-
 
 
 ##############  Create a df for revenues with all years  ########################
@@ -263,25 +268,34 @@ df_rev = pd.concat(list(revenue.values()))
 
 # make wide version (years as columns)
 df_rev = (
-    df_rev.groupby(["USA", "ST", "State", "Category", "Description", "State/Local", 'Year'])
-            .sum()
-            .unstack('Year')
-            .reset_index()
+    df_rev.groupby(
+        ["USA", "ST", "State", "Category", "Description", "State/Local", "Year"]
+    )
+    .sum()
+    .unstack("Year")
+    .reset_index()
 )
 
 # flatten multi-level column headings
-level0=df_rev.columns.get_level_values(0)
-level1=df_rev.columns.get_level_values(1)
-df_rev.columns = level0+'_'+level1
-df_rev = df_rev.rename(columns={'USA_': 'USA', 'ST_': 'ST', 'State_': 'State','Category_': 'Category',
-                                        'Description_': 'Description', "State/Local_": "State/Local" })
+level0 = df_rev.columns.get_level_values(0)
+level1 = df_rev.columns.get_level_values(1)
+df_rev.columns = level0 + "_" + level1
+df_rev = df_rev.rename(
+    columns={
+        "USA_": "USA",
+        "ST_": "ST",
+        "State_": "State",
+        "Category_": "Category",
+        "Description_": "Description",
+        "State/Local_": "State/Local",
+    }
+)
 df_rev.fillna(0, inplace=True)
 
-with open( DATA_PATH.joinpath('df_rev.pickle'), 'wb') as handle:
+with open(DATA_PATH.joinpath("df_rev.pickle"), "wb") as handle:
     pickle.dump(df_rev, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-print('df_rev, the revenue df is saved as a pickle file in  \data ')
+print("df_rev, the revenue df is saved as a pickle file in  \data ")
 
-print('ready')
+print("ready")
 ##################  End Revenue   ########################################
-
