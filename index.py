@@ -16,7 +16,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from app import app
-from page import  budget, city_budget
+from page import  state, local
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -27,12 +27,12 @@ app.layout = html.Div([
 @app.callback(Output('page-content', 'children'),
               [Input('url', 'pathname')])
 def display_page(pathname):
-    if pathname == '/page/city_budget':
-        return city_budget.layout
-    elif pathname == '/page/budgets':
-        return budget.layout
+    if pathname == '/page/local':
+        return local.layout
+    elif pathname == '/page/state':
+        return state.layout
     else:
-        return budget.layout
+        return state.layout
 
 if __name__ == '__main__':
     app.run_server(debug=True)

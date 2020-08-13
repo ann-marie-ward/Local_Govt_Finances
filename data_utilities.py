@@ -1,5 +1,5 @@
 '''
-These are helper functions for the Understanding State and Local 
+These are helper functions for the Exploring State and Local 
 Govermnemtns app.
 
 
@@ -221,10 +221,7 @@ revenue_cats = {
     "Other": [39,40,41,42,48],
 }
 
-# Line numbers and descriptions from the census spreadsheet and df_summary
-lines_description = {
-    
-}
+
 
 exp_lines = [71, 73, 75, 76, 106, 108, 109, 110, 101, 84, 83, 81, 78, 80, 79, 85, 99, 97, 
              107, 94, 93, 92, 96, 88, 86, 89, 90, 102, 104, 116, 117, 118, 115, 119, 111, 112]

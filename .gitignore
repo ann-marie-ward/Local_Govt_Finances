@@ -348,4 +348,4 @@ healthchecksdb
 # these data files are only updated when the source data is updated, which 
 # in the case of census data is annually
 # may need to change this for live since need the data files to run the app
-/data/
+#/data/

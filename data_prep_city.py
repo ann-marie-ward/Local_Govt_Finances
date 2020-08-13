@@ -1,19 +1,19 @@
 """ 
-This module reads the census files and cleans the data. 
+This module reads the census files, cleans the data and and creates subsets of data
+to use as input files for the Local page of the app.
 
-It only needs to be run if data files are updated.  (approx annually)
-
-Update the YEARS variable when new data is added
-
-Read notes in each function to help with data cleaning.  Files are different each year.  sigh. 
+This module only needs to be run if data files are updated.  (approx annually)
 
 
-The app(index.py) only need the files in the data folder as input. 
+Notes to amw when adding new files:
+- Read notes in each function to help with data cleaning.  Files are different each year.  sigh. 
+ -Update the YEARS.
+
 
 Note:  as of Aug 2020 fin_xxxx.pickle files are intermediate files used to create df_exp and df_rev.
        they are not yet used in the app.   May use in future to create full report rather than
        just the exp and rev reports. But for now, to save space they are not being pickled so they
-       are not uploaded to  pythonanywhere
+       are not uploaded to pythonanywhere
 
 
 *****    DATA SOURCES  ********
@@ -41,16 +41,16 @@ https://www.census.gov/programs-surveys/gov-finances/technical-documentation.htm
 
 *****  SUMMARY OF INPUT FILES  ***********
 
-From these links, the following files are used:
+From the links above, the following files are used:
    1) methodology_for_summary_tabulations.xlsx
 
-   2) 2017FinEstDAT_02202020modp_pu.txt
+   2) 2017FinEstDAT_02202020modp_pu.txt         Detail info such as  ID, item codes, and amounts,
       2016FinEstDAT_10162019modp_pu.txt
       2015FinEstDAT_10162019modp_pu.txt
       2014FinEstDAT_10162019modp_pu.txt
 
       city_names.xlsx (input file only)
-   3) Fin_GID_2017.txt
+   3) Fin_GID_2017.txt                          ID info such as state, city names, population
       Fin_GID_2016.txt
       Fin_GID_2015.txt
       Fin_GID_2014.txt
@@ -58,18 +58,17 @@ From these links, the following files are used:
 
 ******  SUMMARY OF OUTPUT FILES  - Used as app input files
 
-Output:  Pickled files for:
+Output:  Pickled files for:                   
   1) df_summary.pickle
 
-  2) fin2017.pickle
+  2) fin2017.pickle                            Financial Statements
      fin2016.pickle
      fin2015.pickle
      fin2014.pickle
   
-  3) Fin_GID.pickle
+  3) Fin_GID.pickle                            
 
-  4) df_city_exp.pickle
-     df_city_rev.pickle     
+  4) df_city_exp.pickle                        Revenue and Expense reports     df_city_rev.pickle     
 """
 
 
@@ -91,7 +90,7 @@ DATA_PREP_PATH = PATH.joinpath("./data_prep_city").resolve()
 YEARS = [str(year) for year in range(2014, 2018)]
 
 
-##############  Summary of which Item Codes are in each line of report ###########################
+##############  Summary of which Item Codes are in each line of financial statement ###########################
 df_summary = pd.read_excel(
     DATA_PREP_PATH.joinpath("methodology_for_summary_tabulations.xlsx"), skiprows=1
 ).fillna(" ")
@@ -121,7 +120,7 @@ for line in summary_dict:
 
 print("starting fin")
 ################# Individual data file ####################################
-def read_individual_unit_data(file):
+def make_financial_statement(file):
     """
     Individual Unit Data File (Public Use Format)																
     For 2017, the file name is 2017FinEstDAT_02202020modp_pu.txt
@@ -153,7 +152,7 @@ def read_individual_unit_data(file):
 
     idcodes = list(df_fin["ID code"].unique())
 
-    # makes  one summary report for each city.
+    # makes  one financial statement for each city.
     df_fin_line = []
     for line in summary_dict:
         df_fin["Line amount"] = df_fin[df_fin["Item code"].isin(summary_dict[line])][
@@ -175,9 +174,9 @@ fin_filenames = {
     "2015": "2015FinEstDAT_10162019modp_pu.txt",
     "2014": "2014FinEstDAT_10162019modp_pu.txt",
 }
-fin = {year: read_individual_unit_data(file) for year, file in fin_filenames.items()}
+fin = {year: make_financial_statement(file) for year, file in fin_filenames.items()}
 
-## Save one file for each year since the whole fin dictionary is too large:
+## Save one file for each year since the whole fin dictionary is too large (> 100mg)
 # for year in fin:
 #    filename = ''.join(['fin_', year, '.pickle'])
 #    with open( DATA_PATH.joinpath(filename), 'wb') as handle:
@@ -201,9 +200,8 @@ def fix_name(name):
     """ corrects city name in Fin_GID file
 
     For some strange reason, all of the cities and towns end with the word "City" or "Town"
-    or "Village"
-    ie Seattle is Seattle City.  This removes the extra "City" but it can't remove the 
-    "City" from places like "New York City"
+    or "Village"   ie Seattle is Seattle City.  This removes the extra "City" but it can't remove the 
+    "City" from places like "New York City or Cedar City"
     """
     if name in citycity or name in village:
         return name
@@ -215,10 +213,7 @@ def fix_name(name):
 
 
 ###################  GID File   #################################
-##GID Directory Information File (Basic identifier information for corresponding finance survey)
-## sample for 2017
-## Use this to filter cities prior to showing data in city app
-
+##GID Directory Information File (Basic identifier information for corresponding financial statement)
 
 def make_Fin_GID_dict(filename):
     df_Fin_GID = pd.read_fwf(
@@ -316,20 +311,19 @@ with open(DATA_PATH.joinpath("Fin_GID.pickle"), "wb") as handle:
 print("starting df_exp and df_rev")
 ########################  make df_exp and df_rev ########################
 def make_df_report(df_fin, year, report):
-    """  Make df for a single year of a report.   The report is a summary of  line numbers
-         in each category as defined in data_utilities.py
+    """  Creates a df for a report of expenditure or revenue for a single year.  This is a subset of the
+         financial statement created in make_financial_statement().  
     
-        This creates a df of expenditure or revenue categories consitant with:
+        The subset is consitant with:
         https://www.census.gov/library/visualizations/interactive/state-local-snapshot.html
-        This is a helper function to create the complete expenditure dataset for all years
 
      Args:  
-        df (dataframe) : created from dff_summary for a year
+        df (dataframe) : from fin
         year  (int)  :  4 digit year
-        report (str) : type of report
+        report (str) : type of report (revenue or expenditures)
 
     Returns:
-        A dataframe in a shape needed for the sunburst and treemap charts for a single year
+        A dataframe in a shape needed for the sunburst charts and table for a single year
     """
 
     if report == "revenue":
@@ -346,18 +340,31 @@ def make_df_report(df_fin, year, report):
     # add columns from df_Fin_GID
     df_report = df_report.merge(Fin_GID[year], on="ID code")
 
+    df_report["Amount"] = df_report["Amount"] * 1000
+    df_report["Per Capita"] = (
+        (df_report["Amount"] / df_report["Population"])
+        .fillna(0)
+        .replace([np.inf, -np.inf], 0)
+    )
+    df_report["Per Student"] = (
+        (df_report["Amount"] / df_report["Enrollment"])
+        .fillna(0)
+        .replace([np.inf, -np.inf], 0)
+    )
+
     # keep these columns
-    columns = [
-        "Line",
-        "Category",
-        "ST",
-        "ID name",
-        "Amount",
-        "ID code",
-        "Population",
-        "Enrollment",
-    ]
-    df_report = df_report[columns]
+    df_report = df_report[
+        [
+            "Line",
+            "Category",
+            "ST",
+            "ID name",
+            "Amount",
+            "ID code",           
+            "Per Capita",
+            "Per Student",
+        ]
+    ]    
     df_report["Year"] = year
     return df_report
 
@@ -374,19 +381,7 @@ with open(DATA_PATH.joinpath("df_city_rev.pickle"), "wb") as handle:
     pickle.dump(df_city_rev, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-print("ready")
+print("done")
 
 
-# MY Notes
-###############   READING DATA INTO PYTHON INTERACTIVE
 
-# MYDATA = r'C:\Users\amwar\source\repos\city_budgets\data\\'
-# MYCITYDATA = r'C:\Users\amwar\source\repos\city_budgets\data_prep_city\\'
-
-
-## read pickle files from my dir
-# with open(MYDATA + 'df_city_city.pickle', 'rb') as handle:
-#    df_city_city = pickle.load(handle)
-
-## read excel files from my dir
-# df = pd.read_excel(MYCITYDATA + 'city_names.xlsx')

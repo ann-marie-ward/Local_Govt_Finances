@@ -1,9 +1,11 @@
 """ 
-This module reads the census files and cleans the data. 
+This module reads the census files, cleans the data and and creates subsets of data
+to use as input files for the State page of the app.
 
-It only needs to be run if data files are updated.  (approx annually)
+It only needs to be run when data files are updated.  (approx annually)
 
-Note when adding new data:  for the yy+slsstab1a.xlsx and yy+slsstab1b.xlsx check for
+Note amw:
+When adding new data:  for the yy+slsstab1a.xlsx and yy+slsstab1b.xlsx check for
 the number of rows to skip before the header.   from 2012-2017 it's either 7 or 9 rows
 
 Also check the number of columns for each state.  2017 has 3, 2012-2016 has 5
@@ -14,9 +16,9 @@ Read notes in each function to help with data cleaning.  Files are different eac
 
 
 Output:  Pickled files for:
-census (cleaned data) 
-expenditures
-revenue
+census -  state full financial statements
+expenditures report
+revenue report
 
 
 """
@@ -36,12 +38,12 @@ DATA_PATH = PATH.joinpath("./data").resolve()
 DATA_PREP_PATH = PATH.joinpath("./data_prep").resolve()
 
 
-########  Important!!  Update this when new data is added.
+########  Update this when new data is added.
 YEARS = [year for year in range(2012, 2018)]
 
 
 ######################  Read Census file ######################################
-def read_census(filea, fileb):
+def census_financial_statement(filea, fileb):
     """ Returns a dataframe  from excel files downloaded from:
         https://www.census.gov/data/datasets/2017/econ/local/public-use-datasets.html  
         Input Files are downloaded in 2 parts in 2 different excel files.  
@@ -79,20 +81,17 @@ def read_census(filea, fileb):
         .drop("Description", level=0, axis=1)  #     prior to concat
         .reset_index(drop=True)
     )
-
     return pd.concat([dfa, dfb], axis=1, levels=[0, 1])
 
 
 # Creates a dictionary with key as year and values as a df for the census spreadsheets
 two_digit_yrs = [year - 2000 for year in YEARS]
 census = {
-    yr + 2000: read_census(str(yr) + "slsstab1a.xlsx", str(yr) + "slsstab1b.xlsx")
+    yr + 2000: census_financial_statement(str(yr) + "slsstab1a.xlsx", str(yr) + "slsstab1b.xlsx")
     for yr in two_digit_yrs
 }
 
-# test and sample usage
-x = census[2016]
-# print(x["Description"])
+
 print(" Census excel spreadsheets processed.")
 print("Working on expenditures")
 
@@ -119,31 +118,24 @@ def read_census_pop():
     ## for some strange reason, the States had a "." at the start
     df_state_pop["State"] = df_state_pop["State"].str.replace(".", "")
     return df_state_pop
-
-
 df_pop_2010_to_2019 = read_census_pop()
 
 
 def pop_by_yr(year):
     return df_pop_2010_to_2019[["State", year]].rename(columns={year: "Population"})
 
-
 df_state_code = pd.DataFrame(du.state_abbr.items(), columns=["State", "ST"])
 
 
-##############  make df based on categories defined in data_utitlities   #####################################
-
-
+#########################  Make Revenue and Expense Report #########################
 def make_df_report(df, year, report):
-    """ Make df for a single year of a report.   The report is summarized based on categories
-        as defined in data_utilities.py
-    
-        The expenditure or revenue categories are consitant with:
+    """ Make df for a single year of a report.   The report is a subset of the census financial
+        statemetns and is consitant with:
         https://www.census.gov/library/visualizations/interactive/state-local-snapshot.html
         This is a helper function to create the complete dataset for all years
 
     Args:  
-        df (dataframe) : created from read_census() for a year
+        df (dataframe) : created from census_financial_statement() for a year
         year  (int)  :  4 digit year
         report (str) : type of report
 
@@ -156,7 +148,7 @@ def make_df_report(df, year, report):
     elif report == "expenditures":
         report_cats = du.expenditure_cats
 
-    # add  categories to the census df
+    # add  categories to the census financial statement df
     dff = df.copy()
     for cat in report_cats:
         for line_no in report_cats[cat]:
@@ -297,5 +289,5 @@ with open(DATA_PATH.joinpath("df_rev.pickle"), "wb") as handle:
 
 print("df_rev, the revenue df is saved as a pickle file in  \data ")
 
-print("ready")
+print("done")
 ##################  End Revenue   ########################################
