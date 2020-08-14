@@ -1,0 +1,6 @@
+dash
+pandas
+dash-bootstrap-components
+plotly-express
+xlrd
+dash-tabulator
