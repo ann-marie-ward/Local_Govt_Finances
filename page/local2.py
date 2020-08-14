@@ -60,9 +60,9 @@ with open(DATA_PATH.joinpath("df_city_rev.pickle"), "rb") as handle:
 # used to add line description to report
 df_description = df_summary[["Line", "Description"]]
 
+# used to add county to report
+df_county = Fin_GID["2017"][["ID code", "County name"]]
 
-# Including all cities will give a memory error
-#init_selected_cities =dict(zip(list(df_exp['ID code']), list(df_exp['ID name'])))
 
 init_selected_cities = {
     "48201702100000": "SEATTLE, WA",
@@ -71,7 +71,11 @@ init_selected_cities = {
 }
 
 
+# TODO move this to data prep
+df_exp["Gov Type"] = df_exp["ID code"].str[2]
+df_rev["Gov Type"] = df_rev["ID code"].str[2]
 
+# TODO move this to data prep
 # add category
 df_summary["Category"] = ""
 df_summary["Type"] = ""
@@ -86,42 +90,41 @@ for cat in du.expenditure_cats:
 
 #########  Table helper functions #############################################
 
-def make_dff_exp_rev(selected_cities, exp_or_rev):
+
+def make_dff_exp_rev(exp_or_rev, dff):
     """ creates the revenue and expense report in a wide format - years as columns
         for selected cities to display in table
     """
 
-    if exp_or_rev == "expenditures":
-        df_table = df_exp[df_exp["ID code"].isin(selected_cities)].copy()
-    else:
-        df_table = df_rev[df_rev["ID code"].isin(selected_cities)].copy()
-   
-
     # make table wide  (years as columns)
-    df_tablew = (
-        df_table.groupby(
-            ["ST", "ID code", "ID name", "Category", "Line", "Year"]
+    dff = (
+        dff.groupby(
+            ["ST", "ID code", "ID name", "Category", "Line", "Gov Type", "Year"]
         )
         .sum()
         .unstack("Year")
         .reset_index()
     )
     # flatten multi-level column headings
-    level0 = df_tablew.columns.get_level_values(0)
-    level1 = df_tablew.columns.get_level_values(1)
-    df_tablew.columns = level0 + "_" + level1
-    df_tablew = df_tablew.rename(
+    level0 = dff.columns.get_level_values(0)
+    level1 = dff.columns.get_level_values(1)
+    dff.columns = level0 + "_" + level1
+    dff = dff.rename(
         columns={
             "ST_": "ST",
             "ID code_": "ID code",
             "ID name_": "ID name",
             "Category_": "Category",
             "Line_": "Line",
+            "Gov Type_": "Gov Type",
         }
     )
-    df_tablew = pd.merge(df_tablew, df_description, how="left", on="Line")
-    df_tablew["ID name"] = df_tablew["ID name"] + ", " + df_tablew["ST"]   
-    return df_tablew.to_dict("records")
+    # add description(subcat) and country name to the table
+    dff = pd.merge(dff, df_description, how="left", on="Line")
+    dff = pd.merge(dff, df_county, how="left", on="ID code")
+
+    dff["ID name"] = dff["ID name"] + ", " + dff["ST"]
+    return dff
 
 
 def get_col(col_name, year):
@@ -132,7 +135,7 @@ def get_col(col_name, year):
 
 
 def year_filter(dff, year):
-    """ renames columns to so selected year doesn't have the year extension ie Amount_2017 """
+    """ renames columns so selected year doesn't have the year extension ie Amount_2017 """
     return dff.rename(
         columns={
             get_col("Amount", year): "Amount",
@@ -184,7 +187,8 @@ def make_sparkline(dff, spark_col, spark_yrs):
     return df_spark["sparkline"]
 
 
-#######  Tabulator Selection table ############################################
+#######  Tabulator table ############################################
+
 
 def df_to_data(dff):
     """ creates data for tabulator from a dataframe """
@@ -197,16 +201,11 @@ def df_to_data(dff):
     return dff.to_dict("records")
 
 
-# options = { "selectable":True, "layout":"fitDataTable", "height":"500px"}
 display_cities_options = {
-    "selectable": False,
-    "maxHeight": "500px",
-    "initialSort": [{"column": "Year", "dir": "dsc"}],
-    #  "layout":"fitColumns "
-}
-select_cities_options = {
     "selectable": True,
-    "maxHeight": "300px",
+    "maxHeight": "500px",
+    "initialSort": [{"column": "Amount", "dir": "dsc"}],
+    #  "layout":"fitColumns "}
     #   "groupBy": "ST"
     #   "layout":"fitDataFill"
     #   "layout":"fitColumns "
@@ -214,9 +213,8 @@ select_cities_options = {
 
 downloadButtonType = {"css": "btn btn-primary btn-sm", "text": "Export", "type": "xlsx"}
 
-
-#  This is the same as if you were using tabulator directly in js
-columns = [
+##########  Tabulator columns
+city_columns = [
     {
         "formatter": "rowSelection",
         "hozAlign": "center",
@@ -225,69 +223,11 @@ columns = [
         "cellClick": "function(e, cell){ cell.getRow().toggleSelect();}",
     },
     {
-        "title": "State",
-        "field": "ST",
-        "hozAlign": "left",
-        "headerFilter": True,
-        "hozAlign": "center",
-    },
-    {
-        "title": "State name",
-        "field": "State",
-        "hozAlign": "left",
-        "headerFilter": True,
-    },
-    {
         "title": "County",
         "field": "County name",
         "hozAlign": "left",
         "headerFilter": True,
     },
-    {
-        "title": "Local govt name",
-        "field": "ID name",
-        "hozAlign": "left",
-        "headerFilter": True,
-    },
-    {
-        "title": "Special districts",
-        "field": "Special districts",
-        "hozAlign": "left",
-        "headerFilter": True,
-    },
-    {
-        "title": "Population",
-        "field": "Population",
-        "hozAlign": "right",
-        "formatter": "money",
-        "formatterParams": {"precision": 0},
-        # "headerFilter":True
-    },
-    {
-        "title": "School Enrollment",
-        "field": "Enrollment",
-        "hozAlign": "right",
-        "formatter": "money",
-        "formatterParams": {"precision": 0},
-        # "topCalc":"sum",  "topCalcParams":{"precision":0}
-    },
-]
-
-
-select_city_tabulator = (
-    dash_tabulator.DashTabulator(
-        id="select_city_tabulator",
-        columns=columns,
-        data=df_to_data(Fin_GID[START_YR]),
-        options=select_cities_options,
-        downloadButtonType=downloadButtonType,
-    ),
-)
-
-
-##########  Tabulator - City summary report output
-city_columns = [
-    {"title": "State", "field": "ST", "hozAlign": "left", "headerFilter": True},
     {
         "title": "City/District",
         "field": "ID name",
@@ -315,12 +255,24 @@ city_columns = [
         # "headerFilter":True
         # "topCalc":"sum",  "topCalcParams":{"precision":0}
     },
+]
+
+
+percapita_columns = [
+    {
+        "title": "Population",
+        "field": "Population",
+        "hozAlign": "right",
+        "formatter": "money",
+        "formatterParams": {"precision": 0},
+        # "headerFilter":True
+    },
     {
         "title": "Per Capita",
         "field": "Per Capita",
         "hozAlign": "right",
         "formatter": "money",
-        "formatterParams": {"precision": 0},       
+        "formatterParams": {"precision": 0},
     },
     {
         "title": "Per Capita 2014-2017",
@@ -328,12 +280,23 @@ city_columns = [
         "hozAlign": "left",
         "cssClass": "bar-extrawide",
     },
+]
+
+perstudent_columns = [
+    {
+        "title": "School Enrollment",
+        "field": "Enrollment",
+        "hozAlign": "right",
+        "formatter": "money",
+        "formatterParams": {"precision": 0},
+        # "topCalc":"sum",  "topCalcParams":{"precision":0}
+    },
     {
         "title": "Per Student",
         "field": "Per Student",
         "hozAlign": "right",
         "formatter": "money",
-        "formatterParams": {"precision": 0},       
+        "formatterParams": {"precision": 0},
     },
     {
         "title": "Per Student 2014-2017",
@@ -345,8 +308,8 @@ city_columns = [
 
 city_tabulator = (
     dash_tabulator.DashTabulator(
-        id="city_table",
-        columns=city_columns,
+        id="2city_table",
+        columns=city_columns + percapita_columns,
         data=[],
         options=display_cities_options,
         downloadButtonType=downloadButtonType,
@@ -355,6 +318,7 @@ city_tabulator = (
 
 
 ##############  City Cards (sunburst + stats table)   #########################
+
 
 def make_sunburst(df, path, values, title):
     fig = px.sunburst(
@@ -385,7 +349,6 @@ def make_sunburst(df, path, values, title):
         # paper_bgcolor="whitesmoke",
         clickmode="event+select",
     )
-
     return fig
 
 
@@ -444,10 +407,47 @@ def make_stats_table(dff):
 
 ########### buttons, dropdowns, check boxes, sliders  #########################
 
+
+state_dropdown = html.Div(
+    [
+        html.Div("Select State:", style={"font-weight": "bold"}),
+        dcc.Dropdown(
+            id="2state",
+            options=[
+                {"label": state, "value": abbr} for state, abbr in du.state_abbr.items()
+            ],
+            value="AZ",
+            clearable=False,
+            className="mt-2",
+        ),
+    ],
+    className="px-3",
+)
+
+type_dropdown = html.Div(
+    [
+        html.Div("Select Local Government Type:", style={"font-weight": "bold"}),
+        dcc.Dropdown(
+            id="2type",
+            options=[
+                {"label": "County", "value": "county"},
+                {"label": "City", "value": "city"},
+                {"label": "School District", "value": "school"},
+                {"label": "Special District", "value": "special"},
+            ],
+            value="city",
+            clearable=False,
+            className="mt-2",
+        ),
+    ],
+    className="p-3",
+)
+
+
 selected_cities_dropdown = html.Div(
     [
         dcc.Dropdown(
-            id="selected_cities_dropdown",
+            id="2selected_cities_dropdown",
             placeholder="Select cities from the table",
             options=[
                 {"label": name, "value": code}
@@ -465,11 +465,11 @@ exp_rev_button_group = html.Div(
     [
         dbc.ButtonGroup(
             [
-                dbc.Button("Expenditures", id="city_expenditures"),
-                dbc.Button("Revenue", id="city_revenue"),
+                dbc.Button("Expenditures", id="2city_expenditures"),
+                dbc.Button("Revenue", id="2city_revenue"),
             ],
             vertical=True,
-            className="m-1 btn-sm btn-block",
+            className="m-1 btn-sm btn-block p3",
         )
     ]
 )
@@ -477,7 +477,7 @@ exp_rev_button_group = html.Div(
 year_slider = html.Div(
     [
         dcc.Slider(
-            id="city_year",
+            id="2city_year",
             min=int(min(YEARS)),
             max=int(max(YEARS)),
             step=1,
@@ -497,7 +497,7 @@ table_subtotal = html.Div(
     [
         html.Div("Show in the table:", style={"font-weight": "bold"}),
         dcc.RadioItems(
-            id="table_subtotal",
+            id="2table_subtotal",
             options=[
                 {"label": "City/District totals only", "value": "city_totals"},
                 {"label": "All Categories", "value": "all_cats"},
@@ -510,6 +510,14 @@ table_subtotal = html.Div(
         ),
     ],
     className="p-3 border",
+)
+
+selected_rows = html.Div(
+    [
+        html.Div("Selected rows from table", style={"font-weight": "bold"}),
+        html.Div(selected_cities_dropdown),
+    ],
+    className="p-3 mt-5 border",
 )
 
 
@@ -541,54 +549,12 @@ layout = dbc.Container(
         dbc.Container((navbar), fluid=True),
         html.Div(
             [
-                dcc.Store(id="store_selected_cities", data=init_selected_cities),
-                dcc.Store(id="store_city_exp_or_rev", data="expenditures"),
-                dcc.Store(
-                    id="store_dff_exp",
-                    data=make_dff_exp_rev(init_selected_cities, "expenditures"),
-                ),
-                dcc.Store(
-                    id="store_dff_rev",
-                    data=make_dff_exp_rev(init_selected_cities, "revenue"),
-                ),
-                dcc.Store(id="store_clicked_on", data=None),
+                dcc.Store(id="2store_selected_cities", data=init_selected_cities),
+                dcc.Store(id="2store_city_exp_or_rev", data="expenditures"),
+                dcc.Store(id="2store_clicked_on", data=None),
             ]
         ),
-        html.Div(
-            [
-                dbc.Row(
-                    [
-                        dbc.Col(first_card, width=12),                        
-                    ],
-                    className="m-5",
-                )
-            ]
-        ),
-        #############  City selection  ###################
-        html.Div(
-            [
-                dbc.Row(
-                    [
-                        dbc.Col(
-                            html.Div(
-                                [
-                                    html.H5("Selected rows from table"),
-                                    html.Div(selected_cities_dropdown),
-                                ],
-                                className="m-1 border",
-                            ),
-                            width={"size": 2, "order": 1, "offset": 1},
-                            # className="mt-5 ",
-                        ),
-                        dbc.Col(
-                            html.Div([dcc.Loading(html.Div(select_city_tabulator)),]),
-                            width={"size": 8, "order": 2},
-                            # className=" bg-light",
-                        ),
-                    ]
-                ),
-            ]
-        ),
+        html.Div([dbc.Row([dbc.Col(first_card, width=12),], className="m-5",)]),
         html.Div(
             [
                 ##################### city cards ###################################
@@ -598,7 +564,10 @@ layout = dbc.Container(
                             [
                                 dbc.Col(  # controls
                                     html.Div(
-                                        [exp_rev_button_group] + [year_slider],
+                                        [exp_rev_button_group]
+                                        + [state_dropdown]
+                                        + [type_dropdown]
+                                        + [year_slider],
                                         className="m-3 bg-white border",
                                     ),
                                     width={"size": 2, "order": 1},
@@ -608,12 +577,12 @@ layout = dbc.Container(
                                     html.Div(
                                         [
                                             html.H2(
-                                                id="city_cards_title",
+                                                id="2city_cards_title",
                                                 children=[],
                                                 className="text-white",
                                             ),
                                             html.Div(
-                                                id="city_cards_container", children=[]
+                                                id="2city_cards_container", children=[]
                                             ),
                                         ]
                                     ),
@@ -631,11 +600,10 @@ layout = dbc.Container(
                             [
                                 dbc.Col(  # controls
                                     html.Div(
-                                        [table_subtotal],
+                                        [table_subtotal] + [selected_rows],
                                         className="mt-5 mb-5 mr-3 ml-3 p-2 border bg-white",
                                     ),
                                     width={"size": 2, "order": 1},
-                                   
                                 ),
                                 dbc.Col(
                                     html.Div(
@@ -664,24 +632,22 @@ layout = dbc.Container(
 ##### Update selected cities
 @app.callback(
     [
-        Output("store_selected_cities", "data"),
-        Output("selected_cities_dropdown", "options"),
-        Output("selected_cities_dropdown", "value"),
+        Output("2store_selected_cities", "data"),
+        Output("2selected_cities_dropdown", "options"),
+        Output("2selected_cities_dropdown", "value"),
     ],
-    [Input("select_city_tabulator", "rowClicked"),],
+    [Input("2city_table", "rowClicked"),],
     [
-        State("store_selected_cities", "data"),
-        State("selected_cities_dropdown", "value"),
+        State("2store_selected_cities", "data"),
+        State("2selected_cities_dropdown", "value"),
     ],
 )
 def update_selected_cities_data(
     tabulator_row, selected_cities_store, selected_cities_dd
 ):
-
     new_selection = []
     options = []
 
-    # TODO add state name to ID name... duplicate ID names in file ?
     if tabulator_row:
         selected_cities_store[tabulator_row["ID code"]] = ", ".join(
             [tabulator_row["ID name"], tabulator_row["ST"]]
@@ -698,26 +664,13 @@ def update_selected_cities_data(
             {"label": name, "value": code}
             for code, name in selected_cities_store.items()
         ]
-
     return selected_cities_store, options, selected_cities_dd
-
-
-##### Update revenue and expense report for selected cities
-@app.callback(
-    [Output("store_dff_exp", "data"), Output("store_dff_rev", "data")],
-    [Input("selected_cities_dropdown", "value")],
-)
-def update_selected_cities_data(selected_cities_dd):
-    return (
-        make_dff_exp_rev(selected_cities_dd, "expenditures"),
-        make_dff_exp_rev(selected_cities_dd, "revenue"),
-    )
 
 
 ######  Update revenue or expenses store
 @app.callback(
-    Output("store_city_exp_or_rev", "data"),
-    [Input("city_expenditures", "n_clicks"), Input("city_revenue", "n_clicks"),],
+    Output("2store_city_exp_or_rev", "data"),
+    [Input("2city_expenditures", "n_clicks"), Input("2city_revenue", "n_clicks"),],
 )
 def update_exp_or_rev(exp, rev):
     ctx = dash.callback_context
@@ -727,20 +680,39 @@ def update_exp_or_rev(exp, rev):
 
 #####  Update city table
 @app.callback(
-    Output("city_table", "data"),
+    [Output("2city_table", "data"), Output("2city_table", "columns")],
     [
-        Input("store_city_exp_or_rev", "data"),
-        Input("city_year", "value"),
-        Input("table_subtotal", "value"),
-        Input("store_clicked_on", "data"),
-        Input("store_dff_exp", "data"),
-        Input("store_dff_rev", "data"),
+        Input("2store_city_exp_or_rev", "data"),
+        Input("2city_year", "value"),
+        Input("2table_subtotal", "value"),
+        Input("2store_clicked_on", "data"),
+        Input("2state", "value"),
+        Input("2type", "value"),
     ],
 )
-def update_city_table(exp_or_rev, year, subtotal, clicked_on, dff_exp, dff_rev):
+def update_city_table(exp_or_rev, year, subtotal, clicked_on, state, type):
 
-    if dff_exp == []:
-        return "", []
+    # filter for type:
+    code = (
+        ["4"]
+        if type == "special"
+        else ["5"]
+        if type == "school"
+        else ["1"]
+        if type == "county"
+        else ["2", "3"]
+    )
+
+    if exp_or_rev == "expenditures":
+        dff_exp = df_exp[
+            (df_exp["ST"] == state) & (df_exp["Gov Type"].isin(code))
+        ].copy()
+        df_table = make_dff_exp_rev("expenditures", dff_exp)
+    else:
+        dff_rev = df_rev[
+            (df_rev["ST"] == state) & (df_rev["Gov Type"].isin(code))
+        ].copy()
+        df_table = make_dff_exp_rev("revenue", dff_rev)
 
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -748,8 +720,6 @@ def update_city_table(exp_or_rev, year, subtotal, clicked_on, dff_exp, dff_rev):
     categories = list(du.revenue_cats) + list(du.expenditure_cats)
     cat = None
     subcat = None
-
-    df_table = pd.DataFrame(dff_exp if exp_or_rev == "expenditures" else dff_rev)
 
     if input_id == "store_clicked_on" and clicked_on:
         if clicked_on in categories:
@@ -766,82 +736,80 @@ def update_city_table(exp_or_rev, year, subtotal, clicked_on, dff_exp, dff_rev):
         df_table = df_table[df_table["Description"] == subcat]
 
     # subtotal
+    main_columns = ["ST", "ID code", "County name", "ID name", "Gov Type"]
     if subcat or (subtotal == "all_subcats"):
         df_table = (
-            df_table.groupby(["ST", "ID code", "ID name", "Category", "Description"])
+            df_table.groupby(main_columns + ["Category", "Description"])
             .sum()
             .reset_index()
         )
     elif cat or (subtotal == "all_cats"):
-        df_table = (
-            df_table.groupby(["ST", "ID code", "ID name", "Category"])
-            .sum()
-            .reset_index()
-        )
+        df_table = df_table.groupby(main_columns + ["Category"]).sum().reset_index()
     else:
-        df_table = df_table.groupby(["ST", "ID code", "ID name"]).sum().reset_index()
+        df_table = df_table.groupby(main_columns).sum().reset_index()
 
     # remove empty cols
     df_table = df_table.loc[:, (df_table != 0).any(axis=0)]
 
-    # add sparklines
-    df_table["sparkline_Per Capita"] = make_sparkline(df_table, "Per Capita", YEARS)
-
-    if any("Per Student" in s for s in df_table.columns):
-        df_table["sparkline_Per Student"] = make_sparkline(
-            df_table, "Per Student", YEARS
-        )
-
     # filter based on year slider
     df_table = year_filter(df_table, str(year))
 
-    return df_to_data(df_table)
+    # school district columns
+    if (df_table["Gov Type"] == "5").all():
+        columns = city_columns + perstudent_columns
+        df_table["Enrollment"] = df_table["Amount"] / df_table["Per Student"]
+        df_table["sparkline_Per Student"] = make_sparkline(
+            df_table, "Per Student", YEARS
+        )
+    # special districts columns
+    elif (df_table["Gov Type"] == "4").all():
+        columns = city_columns
+    else:
+        columns = city_columns + percapita_columns
+        df_table["Population"] = df_table["Amount"] / df_table["Per Capita"]
+        df_table["sparkline_Per Capita"] = make_sparkline(df_table, "Per Capita", YEARS)
+
+    return df_to_data(df_table), columns
 
 
 #####  Update city cards
 @app.callback(
     [
-        Output("city_cards_container", "children"),
-        Output("city_cards_title", "children"),
-        Output("store_clicked_on", "data"),
+        Output("2city_cards_container", "children"),
+        Output("2city_cards_title", "children"),
+        Output("2store_clicked_on", "data"),
     ],
     [
-        Input("store_city_exp_or_rev", "data"),
-        Input("selected_cities_dropdown", "value"),
-        Input("city_year", "value"),
-        Input("store_dff_exp", "data"),
-        Input("store_dff_rev", "data"),
-        Input({"type": "sunburst_output", "index": ALL}, "clickData"),
-        Input("store_selected_cities", "data"),
+        Input("2store_city_exp_or_rev", "data"),
+        Input("2selected_cities_dropdown", "value"),
+        Input("2city_year", "value"),
+        Input({"2type": "sunburst_output", "2index": ALL}, "clickData"),
+        Input("2store_selected_cities", "data"),
     ],
-    [State("store_clicked_on", "data")],
+    [State("2store_clicked_on", "data")],
 )
 def update_city_cards(
-    exp_or_rev,
-    selected_cities,
-    year,
-    dff_exp,
-    dff_rev,
-    clickData,
-    city_dict,
-    clicked_on,
+    exp_or_rev, selected_cities, year, clickData, city_dict, clicked_on,
 ):
     if selected_cities == []:
         return [], [], None
 
-    title_exp = " Expenditures for selected cities, counties and districts"
-    title_rev = " Revenue for selected cities, counties or districts "
-    title = (
-        str(year) + title_exp if exp_or_rev == "expenditures" else str(year) + title_rev
-    )
-    df_cards = pd.DataFrame(dff_exp if exp_or_rev == "expenditures" else dff_rev)
+    if exp_or_rev == "expenditures":
+        dff_exp = df_exp[df_exp["ID code"].isin(selected_cities)].copy()
+        df_cards = make_dff_exp_rev("expenditures", dff_exp)
+        title = str(year) + " Expenditures for selected cities, counties and districts"
+    else:
+        df_rev = df_rev[df_rev["ID code"].isin(selected_cities)].copy()
+        df_cards = make_dff_exp_rev("revenue", dff_rev)
+        title = str(year) + " Revenue for selected cities, counties or districts "
+
     df_cards = year_filter(df_cards, str(year))
 
     categories = list(du.revenue_cats) + list(du.expenditure_cats)
     path = ["ID name", "Category"]  # default if no click data
 
     input_id = dash.callback_context.triggered[0]["prop_id"]
-    # Reset clicked_on if switch reports   
+    # Reset clicked_on if switch reports
     if "store_city_exp_or_rev" in input_id:
         clicked_on = None
 
@@ -849,10 +817,10 @@ def update_city_cards(
     if "index" in input_id:
         # input_id has 'ID code' but sunburst_id has 'ID name'
         # this converts the code to the name
-        ID_name = city_dict[input_id.split('"')[3]]        
+        ID_name = city_dict[input_id.split('"')[3]]
 
         for points in clickData:
-            if points:               
+            if points:
                 # this finds the ID name in the sunburst click_data
                 sunburst_id_name = points["points"][0]["id"].split("/")[0]
 
@@ -874,7 +842,6 @@ def update_city_cards(
             path = ["ID name", "Description"]
             title = title + ": " + clicked_on
 
-    
     children = []
     for city_code in selected_cities:
         df_city = df_cards[df_cards["ID code"] == city_code]
@@ -885,7 +852,6 @@ def update_city_cards(
         column = (
             "Amount" if type == "4" else "Per Student" if type == "5" else "Per Capita"
         )
-
         if clicked_on:
             df_city = df_cards[
                 (df_cards["ID code"] == city_code)
@@ -898,7 +864,7 @@ def update_city_cards(
                 dcc.Graph(
                     id={"type": "sunburst_output", "index": city_code},
                     style={"height": 200},
-                    config={'displayModeBar': False},
+                    config={"displayModeBar": False},
                     figure=make_sunburst(df_city, path, df_city[column], "",),
                 ),
                 html.Div(
@@ -913,4 +879,3 @@ def update_city_cards(
 
 if __name__ == "__main__":
     app.run_server(debug=True)
-

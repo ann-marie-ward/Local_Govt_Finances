@@ -7,8 +7,7 @@ Govermnemtns app.
 
 
 
-state_abbr = {
-    'United States': 'US',
+state_abbr = {   
     'Alabama': 'AL',
     'Alaska': 'AK',
     'Arizona': 'AZ',

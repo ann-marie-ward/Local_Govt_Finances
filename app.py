@@ -38,7 +38,7 @@ navbar = html.Div([
                         width={"size": 1, "order": 11,},
                     ),
                     dbc.Col(
-                        html.H4(dcc.Link('About', href="/page/state", className ='text-white')),       
+                        html.H4(dcc.Link('About', href="/page/about", className ='text-white')),       
                         width={"size": 1, "order": 12,},
                     )
                 ], 
