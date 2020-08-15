@@ -43,7 +43,6 @@ with open(DATA_PATH.joinpath("census.pickle"), "rb") as handle:
 YEARS = [str(year) for year in range(2012, 2018)]
 START_YR = "2017"
 
-
 def get_col(col_name, year):
     """ Helps select column from df_exp and df_rev.  
         returns  'Amount_2017' from input args ('Amount', 2017)
@@ -347,7 +346,6 @@ map = html.Div(
     className="mt-3",
 )
 
-
 ####################### Dash Tables  ##########################################
 
 
@@ -423,6 +421,7 @@ def make_table(dff):
                     },
                 ],
                 data=dff.to_dict("records"),
+               # filter_action='native',
                 sort_action="native",
                 sort_mode="multi",
                 export_format="xlsx",

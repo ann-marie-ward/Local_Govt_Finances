@@ -89,7 +89,7 @@ DATA_PREP_PATH = PATH.joinpath("./data_prep_city").resolve()
 ########  Important!!  Update this when new data is added.
 YEARS = [str(year) for year in range(2014, 2018)]
 
-
+print('Starting df_summary')
 ##############  Summary of which Item Codes are in each line of financial statement ###########################
 df_summary = pd.read_excel(
     DATA_PREP_PATH.joinpath("methodology_for_summary_tabulations.xlsx"), skiprows=1
@@ -106,6 +106,17 @@ df_summary[["Line", "Item Codes"]] = df_summary[["Line", "Item Codes"]].astype(
     "category"
 )
 df_summary["Description"] = df_summary["Description"].astype("str")
+
+df_summary["Category"] = ""
+df_summary["Type"] = ""
+for cat in du.revenue_cats:
+    for line_no in du.revenue_cats[cat]:
+        df_summary.loc[df_summary["Line"] == line_no, ["Category", "Type"]] = [cat, "R"]
+
+for cat in du.expenditure_cats:
+    for line_no in du.expenditure_cats[cat]:
+        df_summary.loc[df_summary["Line"] == line_no, ["Category", "Type"]] = [cat, "E"]
+
 
 with open(DATA_PATH.joinpath("df_summary.pickle"), "wb") as handle:
     pickle.dump(df_summary, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -304,8 +315,6 @@ GID_filenames = {
 }
 Fin_GID = {year: make_Fin_GID_dict(file) for year, file in GID_filenames.items()}
 
-with open(DATA_PATH.joinpath("Fin_GID.pickle"), "wb") as handle:
-    pickle.dump(Fin_GID, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 print("starting df_exp and df_rev")
@@ -355,12 +364,9 @@ def make_df_report(df_fin, year, report):
     # keep these columns
     df_report = df_report[
         [
+            "ID code", 
             "Line",
-            "Category",
-            "ST",
-            "ID name",
-            "Amount",
-            "ID code",           
+            "Amount",                      
             "Per Capita",
             "Per Student",
         ]
@@ -375,10 +381,64 @@ df_city_exp = pd.concat(list(city_exp.values()))
 city_rev = {year: make_df_report(fin[year], year, "revenue") for year in YEARS}
 df_city_rev = pd.concat(list(city_rev.values()))
 
-with open(DATA_PATH.joinpath("df_city_exp.pickle"), "wb") as handle:
-    pickle.dump(df_city_exp, handle, protocol=pickle.HIGHEST_PROTOCOL)
-with open(DATA_PATH.joinpath("df_city_rev.pickle"), "wb") as handle:
-    pickle.dump(df_city_rev, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+# Change the df_city_exp and df_city_rev into wide format for use in app.
+
+def make_wide(dff):
+    """ creates the revenue and expense report in a wide format - years as columns
+        for selected cities to display in table
+    """
+
+    # make table wide  (years as columns)
+    dff = (
+        dff.groupby(
+            ["ID code", "Line", "Year"]
+        )
+        .sum()
+        .unstack("Year")
+        .reset_index()
+    )
+    # flatten multi-level column headings
+    level0 = dff.columns.get_level_values(0)
+    level1 = dff.columns.get_level_values(1)
+    dff.columns = level0 + "_" + level1
+    dff = dff.rename(
+        columns={           
+            "ID code_": "ID code",           
+            "Line_": "Line",           
+        }
+    )   
+    return dff
+df_city_exp =  make_wide(df_city_exp)
+df_city_rev =  make_wide(df_city_rev)
+
+# Due to the size of the files there is one file per state because otherwise 
+# it's too big for the groupby functions.
+
+
+#  This conatins the ID info to add to the exp and rev report (id name, state etc)
+# Note - be sure to use 2017 for this purpose.  It's a larger dataset.  Some years not
+# all cities report, and they won't be included in the GID file
+#  
+df_id = Fin_GID["2017"][["ID code", 'ST', "ID name", "County name"]].copy()
+df_id['Gov Type'] = df_id["ID code"].str[2]
+df_id["ID name"] = df_id["ID name"] + ", " + df_id["ST"]
+
+for code in du.code_state:
+    df_exp = df_city_exp[df_city_exp['ID code'].str[:2] == code]
+    df_exp = pd.merge(df_exp, df_id, how="left", on="ID code")
+
+    df_rev = df_city_rev[df_city_rev['ID code'].str[:2] == code]
+    df_rev = pd.merge(df_rev, df_id, how="left", on="ID code")
+
+    filename= "".join(['exp_rev_', du.code_abbr[code], ".pickle"])
+
+
+    with open(DATA_PATH.joinpath(filename), "wb") as handle:
+        pickle.dump((df_exp, df_rev), handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+
 
 
 print("done")

@@ -8,6 +8,7 @@ Govermnemtns app.
 
 
 state_abbr = {   
+    'United States': 'US',
     'Alabama': 'AL',
     'Alaska': 'AK',
     'Arizona': 'AZ',
