@@ -59,7 +59,7 @@ def get_df_exp_rev(ST):
     return df_exp, df_rev
 
 
-init_ST = 'WA'
+init_ST = 'AZ'
 init_selected_cities = {
     "48201702100000": "SEATTLE, WA",
    # "38202600300000": "PORTLAND, OR",
@@ -631,10 +631,11 @@ def update_exp_or_rev(exp, rev):
 @app.callback(
     Output('store_df_exp_rev', 'data'),
     [
-        Input('state', 'value'),
-        Input("store_selected_cities", "data")
+        Input('state', 'value'),        
     ],
-    [State('store_df_exp_rev', 'data')]    
+    [
+        State("store_selected_cities", "data"),
+        State('store_df_exp_rev', 'data')]    
 )
 def update_df_exp_rev(state, selected_cities, df_exp_rev):
     ''' when new state is selected, keep data from selected cities since
