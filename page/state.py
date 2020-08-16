@@ -529,6 +529,7 @@ mystate_dropdown = html.Div(
 
 category_dropdown = html.Div(
     [
+        html.Div("Select a Category:", style={"font-weight": "bold"}),
         dcc.Dropdown(
             id="category_dropdown",
             options=[{"label": "All Categories", "value": "all"}]
@@ -542,6 +543,7 @@ category_dropdown = html.Div(
 
 sub_category_dropdown = html.Div(
     [
+        html.Div("Select a Sub Category:", style={"font-weight": "bold"}),
         dcc.Dropdown(
             id="subcategory_dropdown",
             options=[{"label": "All Sub Categories", "value": "all"}]
@@ -556,6 +558,7 @@ sub_category_dropdown = html.Div(
 
 state_local_dropdown = html.Div(
     [
+        html.Div("Select state/local:", style={"font-weight": "bold"}),
         dcc.Dropdown(
             id="state_local_dropdown",
             options=[{"label": "Both State & Local", "value": "all"}]
@@ -630,16 +633,20 @@ layout = dbc.Container(
                 dbc.Row(
                     [
                         dbc.Col(  # controls
-                            html.Div(
+                            [html.Div(
                                 [exp_rev_button_group]
-                                + [state_dropdown]
-                                + [category_dropdown]
-                                + [sub_category_dropdown]
-                                + [state_local_dropdown]
-                                + [year_slider],
-                                #  + [table_subtotal],
-                                className="m-1 border",
+                                + [state_dropdown]                             
+                                + [year_slider],                             
+                                className="m-1 mb-5 border",
+                                style={"height": "375px"}
                             ),
+                            html.Div(
+                                  [category_dropdown]
+                                + [sub_category_dropdown]
+                                + [state_local_dropdown],
+                                className="m-1 pt-2 p-2 border",
+                            ),
+                            ],
                             width={"size": 2, "order": 1},
                             className="mt-5 ",
                         ),
@@ -661,6 +668,7 @@ layout = dbc.Container(
                         ),
                     ]
                 ),
+
                 dbc.Row(
                     [
                         dbc.Col(  # large sunburst
