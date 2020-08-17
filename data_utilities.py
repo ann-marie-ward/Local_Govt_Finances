@@ -65,6 +65,11 @@ state_abbr = {
 
 abbr_state = dict(map(reversed, state_abbr.items()))
 
+#states_only = du.state_abbr.copy()
+#del states_only['United States']
+
+abbr_state_noUS = abbr_state.copy()
+del abbr_state_noUS['US']
 
 state_code = {
     'United States': '00',
