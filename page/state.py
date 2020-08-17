@@ -32,8 +32,8 @@ with open(DATA_PATH.joinpath("df_exp.pickle"), "rb") as handle:
 with open(DATA_PATH.joinpath("df_rev.pickle"), "rb") as handle:
     df_rev = pickle.load(handle)
 
-with open(DATA_PATH.joinpath("census.pickle"), "rb") as handle:
-    census = pickle.load(handle)
+#with open(DATA_PATH.joinpath("census.pickle"), "rb") as handle:
+#    census = pickle.load(handle)
 
 # df_cen = census[2017]
 
@@ -731,7 +731,7 @@ def update_state_dropdown(clickData):
         Output("subcategory_dropdown", "value"),
     ],
     [Input("category_dropdown", "value"), Input("store_exp_or_rev", "data")],
-    prevent_initial_call=True,
+   # prevent_initial_call=True,
 )
 def update_sub_category_dropdown(cat, exp_or_rev):
 

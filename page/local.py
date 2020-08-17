@@ -49,20 +49,25 @@ def get_df_exp_rev(ST):
     filename = "".join(["exp_rev_", ST, ".pickle"])
     with open(DATA_PATH.joinpath(filename), "rb") as handle:
         df_exp, df_rev = pickle.load(handle)
-    df_cat_desc = df_summary[["Line", "Category", "Description"]]   
+    df_cat_desc = df_summary[["Line", "Category", "Description"]]
 
     df_exp = pd.merge(df_exp, df_cat_desc, how="left", on="Line")
     df_rev = pd.merge(df_rev, df_cat_desc, how="left", on="Line")
     return df_exp, df_rev
 
 
+# initialize
 init_ST = "AZ"
 init_selected_cities = {
     # "48201702100000": "SEATTLE, WA",
     # "38202600300000": "PORTLAND, OR",
     "03201000200000": "TUCSON, AZ",
 }
-init_df_exp, init_df_rev = get_df_exp_rev(init_ST)
+rev = {}
+exp = {}
+exp["AZ"], rev["AZ"] = get_df_exp_rev(init_ST)
+init_df_exp = exp["AZ"]
+init_df_rev = rev["AZ"]
 
 
 #########  Table helper functions #############################################
@@ -335,7 +340,6 @@ def make_stats_table(dff):
                 html.Td("Total Amount"),
             ]
         )
-
     table_body = [html.Tbody([row2, row1])]
 
     return dbc.Table(
@@ -348,14 +352,15 @@ def make_stats_table(dff):
 
 ########### buttons, dropdowns, check boxes, sliders  #########################
 
-
+states_only = du.state_abbr.copy()
+del states_only['United States']
 state_dropdown = html.Div(
     [
         html.Div("Select State:", style={"font-weight": "bold"}),
         dcc.Dropdown(
             id="city_state",
             options=[
-                {"label": state, "value": abbr} for state, abbr in du.state_abbr.items()
+                {"label": state, "value": abbr} for state, abbr in states_only.items()
             ],
             value="AZ",
             clearable=False,
@@ -501,14 +506,7 @@ layout = dbc.Container(
         html.Div(
             [
                 dcc.Store(id="store_selected_cities", data=init_selected_cities),
-                dcc.Store(
-                    id="store_df_exp_rev",
-                    data=(
-                        init_df_exp.to_dict("records"),
-                        init_df_rev.to_dict("records"),
-                    ),
-                ),
-                dcc.Store(id="store_city_exp_or_rev", data=(init_df_exp.to_dict("records"))),
+                dcc.Store(id="store_city_exp_or_rev"),
                 dcc.Store(id="store_clicked_on", data=None),
             ]
         ),
@@ -534,15 +532,13 @@ layout = dbc.Container(
                                 dbc.Col(
                                     html.Div(
                                         [
-                                            dcc.Loading(html.H2(
+                                            html.H2(
                                                 id="city_cards_title",
                                                 children=[],
                                                 className="text-white",
-                                            )),                                            
+                                            ),
                                             html.Div(
-                                                id="city_cards_container",
-                                                children=[],
-                                                
+                                                id="city_cards_container", children=[],
                                             ),
                                         ]
                                     ),
@@ -610,7 +606,7 @@ def update_selected_cities_data(
     options = []
 
     if tabulator_row:
-        selected_cities_store[tabulator_row["ID code"]] = tabulator_row["ID name"]       
+        selected_cities_store[tabulator_row["ID code"]] = tabulator_row["ID name"]
 
         if selected_cities_val:
             if tabulator_row["ID code"] not in selected_cities_val:
@@ -626,28 +622,21 @@ def update_selected_cities_data(
     return selected_cities_store, options, selected_cities_val
 
 
-######  Update revenue or expenses store and category dropdown
+######  Update category dropdowns when report changes between rev & exp
+######  Update load new state when state changes
 @app.callback(
     [
         Output("store_city_exp_or_rev", "data"),
-        Output("store_df_exp_rev", "data"),
         Output("city_category_dropdown", "options"),
         Output("city_category_dropdown", "value"),
-        Output("city_cards_title", "children"),
     ],
     [
-        Input("city_expenditures", "n_clicks"), 
+        Input("city_expenditures", "n_clicks"),
         Input("city_revenue", "n_clicks"),
         Input("city_state", "value"),
-        Input("store_selected_cities", "data")        
     ],
-    [
-        State("store_df_exp_rev", "data"),
-        State("city_year", "value"),       
-    ]
 )
-def update_exp_or_rev(exp, rev, state, selected_cities, df_exp_rev, year):    
-    exp_data, rev_data = df_exp_rev
+def update_exp_or_rev(exp_click, rev_click, state):
 
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -657,34 +646,13 @@ def update_exp_or_rev(exp, rev, state, selected_cities, df_exp_rev, year):
     options = [{"label": "All Categories", "value": "all"}] + [
         {"label": c, "value": c} for c in categories
     ]
-      
-    # update title
+
     report_type = "Revenue" if input_id == "city_revenue" else "Expenditures"
-    title = "".join([str(year), " ", report_type, " for selected cities, counties and districts"])
 
+    if (input_id == "city_state") and (state not in exp):
+        exp[state], rev[state] = get_df_exp_rev(state)
 
-    # update exp_or_rev data if different report button is selected
-    data = rev_data if input_id == "city_revenue" else exp_data
-          
-    ## when new state is selected, keep data from selected cities since they can be 
-    #  from any state.  Append to the new state.           
-    if input_id == 'city_state': 
-        df_exp = pd.DataFrame(exp_data)
-        df_rev = pd.DataFrame(rev_data)
-
-        dff_exp = df_exp[df_exp["ID code"].isin(selected_cities)]
-        dff_rev = df_rev[df_rev["ID code"].isin(selected_cities)]
-
-        df_exp_new, df_rev_new = get_df_exp_rev(state)
-        df_exp_new=  pd.concat([dff_exp, df_exp_new], ignore_index=True).to_dict("records")
-        df_rev_new=  pd.concat([dff_rev, df_rev_new], ignore_index=True).to_dict("records")
-
-        data = df_rev_new if input_id == "city_revenue" else df_exp_new
-        return data, (df_exp_new, df_rev_new),  options, None, title
-    else:
-        return data, dash.no_update, options, None, title
-
-
+    return report_type, options, None
 
 
 ##### updates sub category dropdown
@@ -715,26 +683,22 @@ def update_sub_category_dropdown(cat, title):
     return options, None
 
 
-       
-       
-    
-
-
 #####  Update city table
 @app.callback(
     [Output("city_table", "data"), Output("city_table", "columns")],
     [
-        Input("store_city_exp_or_rev", "data"),       
+        Input("store_city_exp_or_rev", "data"),
         Input("city_year", "value"),
         Input("city_category_dropdown", "value"),
         Input("city_subcategory_dropdown", "value"),
         Input("store_clicked_on", "data"),
         Input("city_state", "value"),
         Input("city_type", "value"),
+        Input("store_selected_cities", "data"),
     ],
 )
 def update_city_table(
-    exp_or_rev, year, cat, subcat, clicked_on, state, type
+    exp_or_rev, year, cat, subcat, clicked_on, state, type, selected_cities
 ):
     # filter for type:
     code = (
@@ -746,9 +710,19 @@ def update_city_table(
         if type == "county"
         else ["2", "3"]
     )
-       
-    df = pd.DataFrame(exp_or_rev)
+
+    df = rev[state] if exp_or_rev == "Revenue" else exp[state]
     df_table = df[df["Gov Type"].isin(code)].copy()
+
+    # make a df for selected cities that are not in the currently selected state to include in table
+    states = [s for s in rev if s != state]
+    df_sel_cities = []
+    for s in states:
+        df = rev[s] if exp_or_rev == "Revenue" else exp[s]
+        df_sel_cities.append(df[df["ID code"].isin(selected_cities)])
+    if df_sel_cities != []:
+        df_sel_cities = pd.concat(df_sel_cities, ignore_index=True)
+        df_table = pd.concat([df_sel_cities, df_table], ignore_index=True)
 
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -818,28 +792,43 @@ def update_city_table(
 #####  Update city cards
 @app.callback(
     [
-        Output("city_cards_container", "children"),        
+        Output("city_cards_container", "children"),
         Output("store_clicked_on", "data"),
+        Output("city_cards_title", "children"),
     ],
     [
-        Input("store_city_exp_or_rev", "data"),       
+        Input("store_city_exp_or_rev", "data"),
         Input("selected_cities_dropdown", "value"),
         Input("city_year", "value"),
         Input({"type": "sunburst_output", "index": ALL}, "clickData"),
         Input("store_selected_cities", "data"),
+        Input("city_state", "value"),
     ],
     [State("store_clicked_on", "data")],
 )
 def update_city_cards(
-    exp_or_rev, selected_cities, year, clickData, city_dict, clicked_on
+    exp_or_rev, selected_cities, year, clickData, city_dict, state, clicked_on
 ):
     if selected_cities == []:
-        return [], [], None
+        return [], [], []
 
-         
-    
-    df = pd.DataFrame(exp_or_rev)
+    title = "".join(
+        [str(year), " ", exp_or_rev, " for selected cities, counties and districts"]
+    )
+
+    df = rev[state] if exp_or_rev == "Revenue" else exp[state]
     df_cards = df[df["ID code"].isin(selected_cities)].copy()
+
+    # make a df for selected cities that are not in the currently selected state to include in figures
+    states = [s for s in rev if s != state]
+    df_sel_cities = []
+    for s in states:
+        df = rev[s] if exp_or_rev == "Revenue" else exp[s]
+        df_sel_cities.append(df[df["ID code"].isin(selected_cities)])
+    if df_sel_cities != []:
+        df_sel_cities = pd.concat(df_sel_cities, ignore_index=True)
+        df_cards = pd.concat([df_sel_cities, df_cards], ignore_index=True)
+
     df_cards = year_filter(df_cards, str(year))
 
     categories = list(du.revenue_cats) + list(du.expenditure_cats)
@@ -866,17 +855,17 @@ def update_city_cards(
                     clicked_on = points["points"][0]["label"]
 
     # return to upper level if city name clicked on
-    if (df_cards["ID name"] == clicked_on).any():
-        path = ["ID name", "Category"]  # upper level
-        clicked_on = None
+    if clicked_on:
+        if df_cards["ID name"].isin([clicked_on]).any():
+            path = ["ID name", "Category"]  # upper level
+            clicked_on = None
 
-    # save clicked_on but don't change figure
-    elif (df_cards["Description"] == clicked_on).any():
-        return dash.no_update, dash.no_update, clicked_on
+        # save clicked_on but don't change figure
+        elif df_cards["Description"].isin([clicked_on]).any():
+            return dash.no_update, clicked_on, title
 
-    # drill down if upper level clicked on
-    else:
-        if clicked_on:
+        # drill down if upper level clicked on
+        else:
             path = ["ID name", "Description"]
 
     children = []
@@ -910,7 +899,7 @@ def update_city_cards(
             ],
         )
         children.append(new_element)
-    return children, clicked_on
+    return children, clicked_on, title
 
 
 if __name__ == "__main__":

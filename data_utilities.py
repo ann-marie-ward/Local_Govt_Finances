@@ -65,6 +65,7 @@ state_abbr = {
 
 abbr_state = dict(map(reversed, state_abbr.items()))
 
+
 state_code = {
     'United States': '00',
     'Alabama': '01',
