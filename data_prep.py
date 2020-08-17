@@ -87,7 +87,10 @@ def census_financial_statement(filea, fileb):
 # Creates a dictionary with key as year and values as a df for the census spreadsheets
 two_digit_yrs = [year - 2000 for year in YEARS]
 census = {
-    yr + 2000: census_financial_statement(str(yr) + "slsstab1a.xlsx", str(yr) + "slsstab1b.xlsx")
+    yr
+    + 2000: census_financial_statement(
+        str(yr) + "slsstab1a.xlsx", str(yr) + "slsstab1b.xlsx"
+    )
     for yr in two_digit_yrs
 }
 
@@ -118,11 +121,14 @@ def read_census_pop():
     ## for some strange reason, the States had a "." at the start
     df_state_pop["State"] = df_state_pop["State"].str.replace(".", "")
     return df_state_pop
+
+
 df_pop_2010_to_2019 = read_census_pop()
 
 
 def pop_by_yr(year):
     return df_pop_2010_to_2019[["State", year]].rename(columns={year: "Population"})
+
 
 df_state_code = pd.DataFrame(du.state_abbr.items(), columns=["State", "ST"])
 

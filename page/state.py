@@ -1,4 +1,3 @@
-
 import dash
 from dash.dependencies import Input, Output, State
 import dash_table
@@ -42,6 +41,7 @@ with open(DATA_PATH.joinpath("census.pickle"), "rb") as handle:
 # Update this when new data is added:
 YEARS = [str(year) for year in range(2012, 2018)]
 START_YR = "2017"
+
 
 def get_col(col_name, year):
     """ Helps select column from df_exp and df_rev.  
@@ -250,7 +250,7 @@ usa_sunburst = html.Div(
                     START_YR + " USA",
                 ),
                 style={"height": "225px"},
-                config={'displayModeBar': False},
+                config={"displayModeBar": False},
             )
         ),
         html.Div(
@@ -274,7 +274,7 @@ state_sunburst = html.Div(
                 START_YR + " by State",
             ),
             style={"height": "225px"},
-            config={'displayModeBar': False},
+            config={"displayModeBar": False},
         ),
         html.Div(
             id="state_stats",
@@ -300,7 +300,7 @@ mystate_sunburst = html.Div(
                 "START_YR My State",
             ),
             style={"height": "225px"},
-            config={'displayModeBar': False},
+            config={"displayModeBar": False},
         ),
         html.Div(
             id="mystate_stats",
@@ -327,7 +327,7 @@ category_sunburst = html.Div(
                 " ",
             ),
             style={"height": "700px"},
-            config={'displayModeBar': False},           
+            config={"displayModeBar": False},
         )
     ]
 )
@@ -340,7 +340,7 @@ map = html.Div(
                 df_exp, str(START_YR) + " Per Capita Expenditures", "Alabama", START_YR,
             ),
             style={"height": "400px"},
-            config={'displayModeBar': False},
+            config={"displayModeBar": False},
         )
     ],
     className="mt-3",
@@ -421,7 +421,7 @@ def make_table(dff):
                     },
                 ],
                 data=dff.to_dict("records"),
-               # filter_action='native',
+                # filter_action='native',
                 sort_action="native",
                 sort_mode="multi",
                 export_format="xlsx",
@@ -536,7 +536,7 @@ category_dropdown = html.Div(
             + [{"label": c, "value": c} for c in df_exp["Category"].unique()],
             placeholder="Select a category",
             value="Public Safety",
-        )
+        ),
     ],
     className="px-2",
 )
@@ -551,7 +551,7 @@ sub_category_dropdown = html.Div(
             placeholder="Select a sub category",
             style={"font-size": "90%"},
             value="Police protection",
-        )
+        ),
     ],
     className="px-2",
 )
@@ -567,7 +567,7 @@ state_local_dropdown = html.Div(
                 {"label": "Local", "value": "Local"},
             ],
             placeholder="Select State or Local",
-        )
+        ),
     ],
     className="px-2",
 )
@@ -633,19 +633,20 @@ layout = dbc.Container(
                 dbc.Row(
                     [
                         dbc.Col(  # controls
-                            [html.Div(
-                                [exp_rev_button_group]
-                                + [state_dropdown]                             
-                                + [year_slider],                             
-                                className="m-1 mb-5 border",
-                                style={"height": "375px"}
-                            ),
-                            html.Div(
-                                  [category_dropdown]
-                                + [sub_category_dropdown]
-                                + [state_local_dropdown],
-                                className="m-1 pt-2 p-2 border",
-                            ),
+                            [
+                                html.Div(
+                                    [exp_rev_button_group]
+                                    + [state_dropdown]
+                                    + [year_slider],
+                                    className="m-1 mb-5 border",
+                                    style={"height": "375px"},
+                                ),
+                                html.Div(
+                                    [category_dropdown]
+                                    + [sub_category_dropdown]
+                                    + [state_local_dropdown],
+                                    className="m-1 pt-2 p-2 border",
+                                ),
                             ],
                             width={"size": 2, "order": 1},
                             className="mt-5 ",
@@ -668,7 +669,6 @@ layout = dbc.Container(
                         ),
                     ]
                 ),
-
                 dbc.Row(
                     [
                         dbc.Col(  # large sunburst
@@ -842,7 +842,6 @@ def update_mystate(mystate, year, exp_or_rev):
     [State("store_exp_or_rev", "data")],
 )
 def update_map(__, year, state, cat, subcat, local, exp_or_rev):
-   
 
     dff_map = df_rev if exp_or_rev == "Revenue" else df_exp
     dff_table = dff_sunburst = dff_map.copy()
@@ -857,23 +856,22 @@ def update_map(__, year, state, cat, subcat, local, exp_or_rev):
             else dff_table[dff_table["State"] == "Alabama"]
         )
         dff_sunburst = dff_table.copy()
-        sunburst_title = " ".join([str(year), exp_or_rev, state])      
+        sunburst_title = " ".join([str(year), exp_or_rev, state])
 
     if cat and (cat != "all"):
         dff_table = dff_table[dff_table["Category"] == cat]
         dff_map = dff_map[dff_map["Category"] == cat]
-        update_title = " ".join([str(year), exp_or_rev, cat])      
+        update_title = " ".join([str(year), exp_or_rev, cat])
 
     if subcat and (subcat != "all"):
         dff_table = dff_table[dff_table["Description"] == subcat]
         dff_map = dff_map[dff_map["Description"] == subcat]
         update_title = " ".join([str(year), exp_or_rev, subcat])
-        
+
     if local and (local != "all"):
         dff_table = dff_table[dff_table["State/Local"] == local]
         dff_map = dff_map[dff_map["State/Local"] == local]
         update_title = " ".join([update_title, "and", local, "gvmt only"])
-       
 
     # subtotal
     if local:
@@ -882,20 +880,17 @@ def update_map(__, year, state, cat, subcat, local, exp_or_rev):
             .sum()
             .reset_index()
         )
-        
+
     elif subcat:
         dff_table = (
             dff_table.groupby(["State", "Category", "Description"]).sum().reset_index()
         )
-       
 
     elif cat:
         dff_table = dff_table.groupby(["State", "Category"]).sum().reset_index()
-       
 
     else:
         dff_table = dff_table.groupby(["State"]).sum().reset_index()
-       
 
     dff_table["sparkline"] = make_sparkline(dff_table, "Per Capita", YEARS)
     dff_table = table_yr(dff_table, str(year))
@@ -917,4 +912,3 @@ def update_map(__, year, state, cat, subcat, local, exp_or_rev):
 
 if __name__ == "__main__":
     app.run_server(debug=True)
-

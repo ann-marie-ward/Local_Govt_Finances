@@ -89,7 +89,7 @@ DATA_PREP_PATH = PATH.joinpath("./data_prep_city").resolve()
 ########  Important!!  Update this when new data is added.
 YEARS = [str(year) for year in range(2014, 2018)]
 
-print('Starting df_summary')
+print("Starting df_summary")
 ##############  Summary of which Item Codes are in each line of financial statement ###########################
 df_summary = pd.read_excel(
     DATA_PREP_PATH.joinpath("methodology_for_summary_tabulations.xlsx"), skiprows=1
@@ -226,6 +226,7 @@ def fix_name(name):
 ###################  GID File   #################################
 ##GID Directory Information File (Basic identifier information for corresponding financial statement)
 
+
 def make_Fin_GID_dict(filename):
     df_Fin_GID = pd.read_fwf(
         DATA_PREP_PATH.joinpath(filename),
@@ -316,7 +317,6 @@ GID_filenames = {
 Fin_GID = {year: make_Fin_GID_dict(file) for year, file in GID_filenames.items()}
 
 
-
 print("starting df_exp and df_rev")
 ########################  make df_exp and df_rev ########################
 def make_df_report(df_fin, year, report):
@@ -362,15 +362,7 @@ def make_df_report(df_fin, year, report):
     )
 
     # keep these columns
-    df_report = df_report[
-        [
-            "ID code", 
-            "Line",
-            "Amount",                      
-            "Per Capita",
-            "Per Student",
-        ]
-    ]    
+    df_report = df_report[["ID code", "Line", "Amount", "Per Capita", "Per Student",]]
     df_report["Year"] = year
     return df_report
 
@@ -384,64 +376,48 @@ df_city_rev = pd.concat(list(city_rev.values()))
 
 # Change the df_city_exp and df_city_rev into wide format for use in app.
 
+
 def make_wide(dff):
     """ creates the revenue and expense report in a wide format - years as columns
         for selected cities to display in table
     """
 
     # make table wide  (years as columns)
-    dff = (
-        dff.groupby(
-            ["ID code", "Line", "Year"]
-        )
-        .sum()
-        .unstack("Year")
-        .reset_index()
-    )
+    dff = dff.groupby(["ID code", "Line", "Year"]).sum().unstack("Year").reset_index()
     # flatten multi-level column headings
     level0 = dff.columns.get_level_values(0)
     level1 = dff.columns.get_level_values(1)
     dff.columns = level0 + "_" + level1
-    dff = dff.rename(
-        columns={           
-            "ID code_": "ID code",           
-            "Line_": "Line",           
-        }
-    )   
+    dff = dff.rename(columns={"ID code_": "ID code", "Line_": "Line",})
     return dff
-df_city_exp =  make_wide(df_city_exp)
-df_city_rev =  make_wide(df_city_rev)
 
-# Due to the size of the files there is one file per state because otherwise 
+
+df_city_exp = make_wide(df_city_exp)
+df_city_rev = make_wide(df_city_rev)
+
+# Due to the size of the files there is one file per state because otherwise
 # it's too big for the groupby functions.
 
 
 #  This conatins the ID info to add to the exp and rev report (id name, state etc)
 # Note - be sure to use 2017 for this purpose.  It's a larger dataset.  Some years not
 # all cities report, and they won't be included in the GID file
-#  
-df_id = Fin_GID["2017"][["ID code", 'ST', "ID name", "County name"]].copy()
-df_id['Gov Type'] = df_id["ID code"].str[2]
+#
+df_id = Fin_GID["2017"][["ID code", "ST", "ID name", "County name"]].copy()
+df_id["Gov Type"] = df_id["ID code"].str[2]
 df_id["ID name"] = df_id["ID name"] + ", " + df_id["ST"]
 
 for code in du.code_state:
-    df_exp = df_city_exp[df_city_exp['ID code'].str[:2] == code]
+    df_exp = df_city_exp[df_city_exp["ID code"].str[:2] == code]
     df_exp = pd.merge(df_exp, df_id, how="left", on="ID code")
 
-    df_rev = df_city_rev[df_city_rev['ID code'].str[:2] == code]
+    df_rev = df_city_rev[df_city_rev["ID code"].str[:2] == code]
     df_rev = pd.merge(df_rev, df_id, how="left", on="ID code")
 
-    filename= "".join(['exp_rev_', du.code_abbr[code], ".pickle"])
-
+    filename = "".join(["exp_rev_", du.code_abbr[code], ".pickle"])
 
     with open(DATA_PATH.joinpath(filename), "wb") as handle:
         pickle.dump((df_exp, df_rev), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-
-
-
 print("done")
-
-
-
