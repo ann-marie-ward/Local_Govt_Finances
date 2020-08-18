@@ -259,6 +259,7 @@ print("working on revenues")
 ##################  End Expenditures   ########################################
 
 
+
 ##############  Create a df for revenues with all years  ########################
 
 revenue = {year: make_df_report(census[year], year, "revenue") for year in YEARS}

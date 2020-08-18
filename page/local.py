@@ -59,9 +59,9 @@ init_selected_cities = {
     # "38202600300000": "PORTLAND, OR",
     "03201000200000": "TUCSON, AZ",
 }
+
 rev = {}
 exp = {}
-
 for st in du.abbr_state_noUS:
     exp[st], rev[st] =  get_df_exp_rev(st)
 
@@ -73,8 +73,8 @@ init_df_rev = rev["AZ"]
 
 
 def get_col(col_name, year):
-    """ Helps select column from df_exp and df_rev.  
-        returns  'Amount_2017' from input args ('Amount', 2017)
+    """ Helps select column from df_exp and df_rev. Adds year extension 
+        returns  for example: 'Amount_2017' from input args ('Amount', 2017)
     """
     return "".join([col_name, "_", year])
 
@@ -94,7 +94,7 @@ def make_sparkline(dff, spark_col, spark_yrs):
     """ Makes df column with data formatted for sparkline figure.
 
     args:
-        dff (df)         -dataframe of census data (expenditures or revenue) all years
+        dff (df)         -dataframe (expenditures or revenue) all years
         spark_col (str) -name of column for sparkline series (ie "Amount" or "Per Capita")
         spark_yrs [str] - years as a list of strings in to be included in sparkline figure
     Returns:
@@ -595,7 +595,6 @@ def update_selected_cities_data(
     tabulator_row, selected_cities_store, selected_cities_val
 ):
     options = []
-
     if tabulator_row:
         selected_cities_store[tabulator_row["ID code"]] = tabulator_row["ID name"]
 
@@ -614,7 +613,6 @@ def update_selected_cities_data(
 
 
 ######  Update category dropdowns when report changes between rev & exp
-######  Update load new state when state changes
 @app.callback(
     [
         Output("store_city_exp_or_rev", "data"),
@@ -623,11 +621,10 @@ def update_selected_cities_data(
     ],
     [
         Input("city_expenditures", "n_clicks"),
-        Input("city_revenue", "n_clicks"),
-        Input("city_state", "value"),
+        Input("city_revenue", "n_clicks"),       
     ],
 )
-def update_exp_or_rev(exp_click, rev_click, state):
+def update_exp_or_rev(exp_click, rev_click):
 
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -638,10 +635,7 @@ def update_exp_or_rev(exp_click, rev_click, state):
         {"label": c, "value": c} for c in categories
     ]
 
-    report_type = "Revenue" if input_id == "city_revenue" else "Expenditures"
-
-    #if (input_id == "city_state") and (state not in exp):
-    #    exp[state], rev[state] = get_df_exp_rev(state)
+    report_type = "Revenue" if input_id == "city_revenue" else "Expenditures"  
 
     return report_type, options, None
 
@@ -652,12 +646,12 @@ def update_exp_or_rev(exp_click, rev_click, state):
         Output("city_subcategory_dropdown", "options"),
         Output("city_subcategory_dropdown", "value"),
     ],
-    [Input("city_category_dropdown", "value"), Input("city_cards_title", "children")],
+    [Input("city_category_dropdown", "value"), Input("store_city_exp_or_rev", "data")],
     prevent_initial_call=True,
 )
-def update_sub_category_dropdown(cat, title):
+def update_sub_category_dropdown(cat, exp_or_rev):
 
-    if "Expenditures" in title:
+    if exp_or_rev == "Expenditures":
         dff = du.df_summary[du.df_summary["Type"] == "E"]
     else:
         dff = du.df_summary[du.df_summary["Type"] == "R"]

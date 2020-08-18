@@ -90,7 +90,7 @@ DATA_PREP_PATH = PATH.joinpath("./data_prep_city").resolve()
 YEARS = [str(year) for year in range(2014, 2018)]
 
 print("Starting df_summary")
-##############  Summary of which Item Codes are in each line of financial statement ###########################
+##############  Summary of which Item Codes are in each line of financial statement ##########
 df_summary = pd.read_excel(
     DATA_PREP_PATH.joinpath("methodology_for_summary_tabulations.xlsx"), skiprows=1
 ).fillna(" ")
@@ -375,7 +375,6 @@ df_city_rev = pd.concat(list(city_rev.values()))
 
 
 # Change the df_city_exp and df_city_rev into wide format for use in app.
-
 
 def make_wide(dff):
     """ creates the revenue and expense report in a wide format - years as columns
