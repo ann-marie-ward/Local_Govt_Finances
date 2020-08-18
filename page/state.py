@@ -324,10 +324,11 @@ map = html.Div(
             id="map",
             figure=make_choropleth(
                 df_exp, str(START_YR) + " Per Capita Expenditures", "Alabama", START_YR,
-            ),               
+            ),   
+            
         )
     ],
-    className="mt-2",
+    className="mt-2", style={"height": "425px"},
 )
 
 ####################### Dash Tables  ##########################################

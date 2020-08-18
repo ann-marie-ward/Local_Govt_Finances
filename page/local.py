@@ -290,46 +290,51 @@ def make_sunburst(df, path, values, title):
     return fig
 
 
-def make_stats_table(dff):
+def make_stats_table(dff, clicked_on):
     row1 = []
     row2 = []
     per_capita = dff["Per Capita"].astype(float).sum()
     per_student = dff["Per Student"].astype(float).sum()
     total_amt = dff["Amount"].astype(float).sum() * 1000
+    if clicked_on is None:
+        clicked_on = ""
 
     if per_capita > 0:
         population = total_amt / per_capita
         row1 = html.Tr(
             [
-                html.Td("{:0,.0f}".format(population), style={"text-align": "right"}),
-                html.Td("Population"),
+                html.Td("{:0,.0f} Population".format(population), 
+                        style={"text-align": "center"}),              
             ]
         )
         row2 = html.Tr(
             [
-                html.Td("${:0,.0f}".format(per_capita), style={"text-align": "right"}),
-                html.Td("Per Capita"),
+                html.Td("${:0,.0f} Per Capita {}".format(per_capita, clicked_on),
+                       style={"text-align": "center"}),
+            
             ]
         )
     elif per_student > 0:
         enrollment = total_amt / per_student
         row1 = html.Tr(
             [
-                html.Td("{:0,.0f}".format(enrollment), style={"text-align": "right"}),
-                html.Td("School Enrollment"),
+                html.Td("{:0,.0f} School Enrollment".format(enrollment), 
+                        style={"text-align": "center"}),
+              
             ]
         )
         row2 = html.Tr(
             [
-                html.Td("${:0,.0f}".format(per_student), style={"text-align": "right"}),
-                html.Td("Per Student"),
+                html.Td("${:0,.0f} Per Student {}".format(per_student, clicked_on), 
+                        style={"text-align": "center"}),
+               
             ]
         )
     else:
         row2 = html.Tr(
             [
-                html.Td("${:0,.0f}".format(total_amt), style={"text-align": "right"}),
-                html.Td("Total Amount"),
+                html.Td("${:0,.0f} Total Amount {}".format(total_amt, clicked_on),
+                       style={"text-align": "center"}),               
             ]
         )
     table_body = [html.Tbody([row2, row1])]
@@ -879,7 +884,7 @@ def update_city_cards(
                 ),
                 html.Div(
                     id={"type": "state_stats", "index": city_code},
-                    children=make_stats_table(df_city),
+                    children=make_stats_table(df_city, clicked_on),
                 ),
             ],
         )
