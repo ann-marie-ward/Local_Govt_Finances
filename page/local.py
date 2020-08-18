@@ -390,18 +390,22 @@ selected_rows = html.Div(
         html.Div(
             "To add a figure, select a row from the table",
             style={"font-weight": "bold"},
+            className="mb-2"
         ),
         html.Div(
             [
-                dcc.Dropdown(
+               # dcc.Dropdown(
+                dcc.Checklist(
                     id="selected_cities_dropdown",
-                    placeholder="Select cities from the table",
+                   # placeholder="Select cities from the table",
                     options=[
                         {"label": name, "value": code}
                         for code, name in init_selected_cities.items()
                     ],
                     value=list(init_selected_cities),
-                    multi=True,
+                  #  multi=True,
+                  labelStyle={'display': 'block'} ,  # take this out if dd
+                  inputStyle={'margin-right': "5px"} # take out if dd
                 ),
             ],
             className="overflow-auto",
