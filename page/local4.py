@@ -38,25 +38,18 @@ DATA_PATH = PATH.joinpath("../data").resolve()
 DATA_PREP_PATH = PATH.joinpath("../data_prep_city").resolve()
 
 
-# file that shows which item codes are in each line of the summary report
-with open(DATA_PATH.joinpath("df_summary.pickle"), "rb") as handle:
-    df_summary = pickle.load(handle)
 
-
-# Local Gov Expenditures df
+# Local  Expenditures and Revenue df
 def get_df_exp_rev(ST):
     """ loads the df_exp and df_rev files by state and adds Cat and Descr columns"""
     filename = "".join(["exp_rev_", ST, ".pickle"])
     with open(DATA_PATH.joinpath(filename), "rb") as handle:
         df_exp, df_rev = pickle.load(handle)
-    df_cat_desc = df_summary[["Line", "Category", "Description"]]
 
-    df_exp = pd.merge(df_exp, df_cat_desc, how="left", on="Line")
-    df_rev = pd.merge(df_rev, df_cat_desc, how="left", on="Line")
+    df_exp = pd.merge(df_exp, du.df_cat_desc, how="left", on="Line")
+    df_rev = pd.merge(df_rev, du.df_cat_desc, how="left", on="Line")
     return df_exp, df_rev
 
-states_only = du.state_abbr.copy()
-del states_only['United States']
 
 
 # initialize
@@ -365,14 +358,13 @@ state_dropdown = html.Div(
         dcc.Dropdown(
             id="city_state",
             options=[
-                {"label": state, "value": abbr} for state, abbr in states_only.items()
+                {"label": state, "value": abbr} for state, abbr in du.states_only.items()
             ],
             value="AZ",
-            clearable=False,
-            className="mt-2",
+            clearable=False,            
         ),
     ],
-    className="px-3",
+    className="px-3 mt-3",
 )
 
 type_dropdown = html.Div(
@@ -387,11 +379,10 @@ type_dropdown = html.Div(
                 {"label": "Special District", "value": "special"},
             ],
             value="city",
-            clearable=False,
-            className="mt-2",
+            clearable=False,            
         ),
     ],
-    className="p-3",
+    className="px-3 mt-3",
 )
 
 selected_rows = html.Div(
@@ -417,7 +408,7 @@ selected_rows = html.Div(
             style={"height": "300px"},
         ),
     ],
-    className="p-3 mt-5 border",
+    className="px-3 mt-5 border",
 )
 
 
@@ -429,7 +420,7 @@ exp_rev_button_group = html.Div(
                 dbc.Button("Revenue", id="city_revenue"),
             ],
             vertical=True,
-            className="m-1 btn-sm btn-block p3",
+            className="m-1 btn-sm btn-block",
         )
     ]
 )
@@ -463,7 +454,7 @@ category_dropdown = html.Div(
             #  value="Public Safety",
         ),
     ],
-    className="px-2",
+    className="px-3",
 )
 
 sub_category_dropdown = html.Div(
@@ -478,7 +469,7 @@ sub_category_dropdown = html.Div(
             #  value="Police protection",
         ),
     ],
-    className="px-2 mt-3",
+    className="px-3 mt-3",
 )
 
 
@@ -507,7 +498,7 @@ dashboard_card = dbc.Card(
 
 layout = dbc.Container(
     [
-        dbc.Container((navbar), fluid=True),
+        html.Div(navbar),
         html.Div(
             [
                 dcc.Store(id="store_selected_cities", data=init_selected_cities),
@@ -564,9 +555,10 @@ layout = dbc.Container(
                                         [category_dropdown]
                                         + [sub_category_dropdown]
                                         + [selected_rows],
-                                        className="mt-5 mb-5 mr-3 ml-3 p-2 border bg-white",
+                                        className=" pt-3 mt=5 m-3 border bg-white",
                                     ),
                                     width={"size": 2, "order": 1},
+                                    className="mt-5 mb-5"
                                 ),
                                 dbc.Col(
                                     html.Div(
@@ -580,7 +572,7 @@ layout = dbc.Container(
                     ]
                 ),
             ],
-            className="bg-primary mr-5 ml-5",
+            className="bg-primary mr-1 ml-1",
         ),
         ###########################   footer #########################
         html.Div(  # footer
@@ -672,9 +664,9 @@ def update_exp_or_rev(exp_click, rev_click, state):
 def update_sub_category_dropdown(cat, title):
 
     if "Expenditures" in title:
-        dff = df_summary[df_summary["Type"] == "E"]
+        dff = du.df_summary[du.df_summary["Type"] == "E"]
     else:
-        dff = df_summary[df_summary["Type"] == "R"]
+        dff = du.df_summary[du.df_summary["Type"] == "R"]
 
     if (cat is None) or (cat == "all"):
         options = [{"label": "All Sub Categories", "value": "all"}] + [

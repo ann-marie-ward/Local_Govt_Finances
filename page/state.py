@@ -42,6 +42,11 @@ with open(DATA_PATH.joinpath("df_rev.pickle"), "rb") as handle:
 YEARS = [str(year) for year in range(2012, 2018)]
 START_YR = "2017"
 
+init_cat = 'Public Safety'
+init_subcat = 'Police protection'
+init_state_subcats = df_exp[df_exp['Category'] == 'Public Safety']['Description'].unique()
+
+
 
 def get_col(col_name, year):
     """ Helps select column from df_exp and df_rev.  
@@ -260,7 +265,7 @@ usa_sunburst = html.Div(
             ),
         ),
     ],
-    className="border",
+  #  className="border",
 )
 
 state_sunburst = html.Div(
@@ -286,7 +291,7 @@ state_sunburst = html.Div(
             ),
         ),
     ],
-    className="border",
+  #  className="border",
 )
 
 mystate_sunburst = html.Div(
@@ -312,7 +317,7 @@ mystate_sunburst = html.Div(
             ),
         ),
     ],
-    className="border",
+   # className="border",
 )
 
 category_sunburst = html.Div(
@@ -397,29 +402,30 @@ def make_table(dff):
             dash_table.DataTable(
                 id="table",
                 columns=[
-                    {"id": "State", "name": "State", "type": "text"},
-                    {"id": "Category", "name": "Category", "type": "text"},
-                    {"id": "Description", "name": "Sub Category", "type": "text"},
-                    {"id": "State/Local", "name": "State or Local ", "type": "text"},
+                    {"id": "State", "name": [' ', "State"], "type": "text"},
+                    {"id": "Category", "name": [' ', "Category" ], "type": "text"},
+                    {"id": "Description", "name": [' ', "Sub Category" ], "type": "text"},
+                    {"id": "State/Local", "name": [' ', "State or Local" ] , "type": "text"},
                     {
                         "id": "Amount",
-                        "name": "Total Amount",
+                        "name": ['in Thousands $',"Total Amount", ],
                         "type": "numeric",
                         "format": FormatTemplate.money(0),
                     },
                     {
                         "id": "Per Capita",
-                        "name": "Per Capita",
+                        "name": [' ', "Per Capita"],
                         "type": "numeric",
                         "format": FormatTemplate.money(0),
                     },
                     {
                         "id": "sparkline",
-                        "name": "Per Capita 2012-2017",
+                        "name": ["Per Capita", "2012-2017"],
                         "type": "numeric",
                         "format": FormatTemplate.money(0),
                     },
                 ],
+                merge_duplicate_headers=True,
                 data=dff.to_dict("records"),
                 # filter_action='native',
                 sort_action="native",
@@ -436,7 +442,7 @@ def make_table(dff):
                 style_cell={
                     "textAlign": "left",
                     "font-family": "arial",
-                    "font-size": "16px",
+                    "font-size": "14px",
                 },
                 style_cell_conditional=[
                     {"if": {"column_id": c}, "textAlign": "right"}
@@ -473,12 +479,11 @@ exp_rev_button_group = dbc.ButtonGroup(
     [
         dbc.Button("Expenditures", id="expenditures"),
         dbc.Button("Revenue", id="revenue"),
-    ],
-    # id="exp_rev",
-    size="lg",
+    ],      
     vertical=True,
-    className="mr-2 p-3 btn-sm btn-block",
-)
+    className="m-1 btn-sm btn-block",
+    )
+
 
 year_slider = html.Div(
     [
@@ -513,7 +518,7 @@ state_dropdown = html.Div(
             className="mt-2",
         )
     ],
-    className="px-2",
+    className="px-3",
 )
 mystate_dropdown = html.Div(
     [
@@ -524,7 +529,7 @@ mystate_dropdown = html.Div(
             clearable=False,
         )
     ],
-    className="px-2",
+    className="mt-3",
 )
 
 category_dropdown = html.Div(
@@ -535,10 +540,10 @@ category_dropdown = html.Div(
             options=[{"label": "All Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in df_exp["Category"].unique()],
             placeholder="Select a category",
-            value="Public Safety",
+            value='Public Safety',
         ),
     ],
-    className="px-2",
+    className="px-3 mt-3",
 )
 
 sub_category_dropdown = html.Div(
@@ -547,13 +552,13 @@ sub_category_dropdown = html.Div(
         dcc.Dropdown(
             id="subcategory_dropdown",
             options=[{"label": "All Sub Categories", "value": "all"}]
-            + [{"label": c, "value": c} for c in df_exp["Description"].unique()],
+            + [{"label": c, "value": c} for c in init_state_subcats],
             placeholder="Select a sub category",
             style={"font-size": "90%"},
-            value="Police protection",
+            value='Police protection',
         ),
     ],
-    className="px-2",
+    className="px-3 mt-3",
 )
 
 state_local_dropdown = html.Div(
@@ -569,7 +574,7 @@ state_local_dropdown = html.Div(
             placeholder="Select State or Local",
         ),
     ],
-    className="px-2",
+    className="px-3 mt-3",
 )
 
 
@@ -613,7 +618,7 @@ intro = html.Div(
 
 layout = dbc.Container(
     [
-        dbc.Container((navbar), fluid=True),
+        html.Div(navbar),
         html.Div(
             [
                 dbc.Row(
@@ -638,14 +643,15 @@ layout = dbc.Container(
                                     [exp_rev_button_group]
                                     + [state_dropdown]
                                     + [year_slider],
-                                    className="m-1 mb-5 border",
+                                    className="m-1 mb-5 border bg-white",
                                     style={"height": "375px"},
                                 ),
                                 html.Div(
                                     [category_dropdown]
                                     + [sub_category_dropdown]
                                     + [state_local_dropdown],
-                                    className="m-1 pt-2 p-2 border",
+                                    className="mt-3 m-1 pt-2 border bg-white",
+                                    style={"height": "375px"},
                                 ),
                             ],
                             width={"size": 2, "order": 1},
@@ -654,7 +660,7 @@ layout = dbc.Container(
                         dbc.Col(  # map and table stacked
                             [map] + [make_table(df_exp)],
                             width={"size": 8, "order": 2},
-                            className=" bg-light",
+                            className=" bg-light mt-3 mb-3",
                         ),
                         dbc.Col(  # stacked sunbursts
                             html.Div(
@@ -662,28 +668,38 @@ layout = dbc.Container(
                                 + [mystate_sunburst]
                                 + [state_sunburst]
                                 + [usa_sunburst],
-                                className="m-2 border",
+                                className="m-2",
                             ),
                             width={"size": 2, "order": "last"},
-                            className="bg-light",
+                            className="bg-primary",
                         ),
-                    ]
+                    ],
+                    className="bg-primary mr-1 ml-1",
+
                 ),
                 dbc.Row(
                     [
                         dbc.Col(  # large sunburst
                             category_sunburst,
                             width={"size": 8, "offset": 2, "order": "last"},
-                            className="borderbg-light",
+                            className="border ",
+                           
                         )
-                    ]
+                    ],
+                     className="bg-white m-1",
                 ),
-                dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5 small"))),
+                ###########################   footer #########################
+                html.Div(  # footer
+                    [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5 small"))),]
+                ),
             ]
         ),
     ],
     fluid=True,
 )
+
+
+
 
 
 #######################    Callbacks     #############################
@@ -731,7 +747,7 @@ def update_state_dropdown(clickData):
         Output("subcategory_dropdown", "value"),
     ],
     [Input("category_dropdown", "value"), Input("store_exp_or_rev", "data")],
-   # prevent_initial_call=True,
+    prevent_initial_call=True,
 )
 def update_sub_category_dropdown(cat, exp_or_rev):
 
@@ -778,7 +794,7 @@ def update_usa(year, exp_or_rev):
         Input("state", "value"),
         Input("year", "value"),
         Input("store_exp_or_rev", "data"),
-    ],
+    ],prevent_initial_call=True,
 )
 def update_selected_state(selected_state, year, exp_or_rev):
 
@@ -806,7 +822,7 @@ def update_selected_state(selected_state, year, exp_or_rev):
         Input("mystate", "value"),
         Input("year", "value"),
         Input("store_exp_or_rev", "data"),
-    ],
+    ],prevent_initial_call=True,
 )
 def update_mystate(mystate, year, exp_or_rev):
     year = str(year)
@@ -840,6 +856,7 @@ def update_mystate(mystate, year, exp_or_rev):
         Input("state_local_dropdown", "value"),
     ],
     [State("store_exp_or_rev", "data")],
+  #  prevent_initial_call=True,
 )
 def update_map(__, year, state, cat, subcat, local, exp_or_rev):
 

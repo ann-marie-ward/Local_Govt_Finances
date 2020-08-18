@@ -6,6 +6,21 @@ Govermnemtns app.
 '''
 
 
+import pathlib
+import pickle
+
+
+PATH = pathlib.Path(__file__).parent
+DATA_PATH = PATH.joinpath("../data").resolve()
+DATA_PREP_PATH = PATH.joinpath("../data_prep_city").resolve()
+
+# file that shows which item codes are in each line of the summary report
+with open(DATA_PATH.joinpath("df_summary.pickle"), "rb") as handle:
+    df_summary = pickle.load(handle)
+
+df_cat_desc = df_summary[["Line", "Category", "Description"]]
+
+
 
 state_abbr = {   
     'United States': 'US',
@@ -62,11 +77,10 @@ state_abbr = {
     'Wyoming': 'WY'
 }
 
-
 abbr_state = dict(map(reversed, state_abbr.items()))
 
-#states_only = du.state_abbr.copy()
-#del states_only['United States']
+states_only = state_abbr.copy()
+del states_only['United States']
 
 abbr_state_noUS = abbr_state.copy()
 del abbr_state_noUS['US']

@@ -38,11 +38,6 @@ DATA_PATH = PATH.joinpath("../data").resolve()
 DATA_PREP_PATH = PATH.joinpath("../data_prep_city").resolve()
 
 
-# file that shows which item codes are in each line of the summary report
-with open(DATA_PATH.joinpath("df_summary.pickle"), "rb") as handle:
-    df_summary = pickle.load(handle)
-
-
 # Local Gov Expenditures df
 def get_df_exp_rev(ST):
     """ loads the df_exp and df_rev files by state and adds Cat and Descr columns"""
@@ -524,7 +519,7 @@ layout = dbc.Container(
                                         + [state_dropdown]
                                         + [type_dropdown]
                                         + [year_slider],
-                                        className="m-3 bg-white border",
+                                        className="m-1 bg-white border",
                                     ),
                                     width={"size": 2, "order": 1},
                                     className="mt-5",
