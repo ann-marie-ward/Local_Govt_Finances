@@ -38,17 +38,18 @@ DATA_PATH = PATH.joinpath("../data").resolve()
 DATA_PREP_PATH = PATH.joinpath("../data_prep_city").resolve()
 
 
-# Local Gov Expenditures df
+
+# Local  Expenditures and Revenue df
 def get_df_exp_rev(ST):
     """ loads the df_exp and df_rev files by state and adds Cat and Descr columns"""
     filename = "".join(["exp_rev_", ST, ".pickle"])
     with open(DATA_PATH.joinpath(filename), "rb") as handle:
         df_exp, df_rev = pickle.load(handle)
-    df_cat_desc = df_summary[["Line", "Category", "Description"]]
 
-    df_exp = pd.merge(df_exp, df_cat_desc, how="left", on="Line")
-    df_rev = pd.merge(df_rev, df_cat_desc, how="left", on="Line")
+    df_exp = pd.merge(df_exp, du.df_cat_desc, how="left", on="Line")
+    df_rev = pd.merge(df_rev, du.df_cat_desc, how="left", on="Line")
     return df_exp, df_rev
+
 
 
 # initialize
@@ -60,7 +61,10 @@ init_selected_cities = {
 }
 rev = {}
 exp = {}
-exp["AZ"], rev["AZ"] = get_df_exp_rev(init_ST)
+
+for st in du.abbr_state_noUS:
+    exp[st], rev[st] =  get_df_exp_rev(st)
+
 init_df_exp = exp["AZ"]
 init_df_rev = rev["AZ"]
 
@@ -267,12 +271,10 @@ def make_sunburst(df, path, values, title):
         path=path,
         values=values,
         color="Category",
-        color_discrete_map=du.sunburst_colors
-        #       hover_data=['Population']
+        color_discrete_map=du.sunburst_colors      
     )
     fig.update_traces(
-        go.Sunburst(
-            # hovertemplate='<b>%{label} </b> <br>%{customdata[0]}<br> $%{value:,.0f}'
+        go.Sunburst(          
             hovertemplate="<b>%{label} </b> $%{value:,.0f}"
         ),
         insidetextorientation="radial",
@@ -281,13 +283,8 @@ def make_sunburst(df, path, values, title):
         title_text=title,
         title_x=0.5,
         title_xanchor="center",
-        title_yanchor="top",
-        #  title_y=0.95,
-        margin=go.layout.Margin(b=10, t=10, l=1, r=1),
-        # yaxis=go.layout.YAxis(tickprefix="$", fixedrange=True),
-        # xaxis=go.layout.XAxis(fixedrange=True),
-        # annotations=total_labels,
-        # paper_bgcolor="whitesmoke",
+        title_yanchor="top",      
+        margin=go.layout.Margin(b=10, t=10, l=1, r=1),       
         clickmode="event+select",
     )
     return fig
@@ -345,24 +342,24 @@ def make_stats_table(dff):
     )
 
 
+
+
 ########### buttons, dropdowns, check boxes, sliders  #########################
 
-states_only = du.state_abbr.copy()
-del states_only['United States']
+
 state_dropdown = html.Div(
     [
         html.Div("Select State:", style={"font-weight": "bold"}),
         dcc.Dropdown(
             id="city_state",
             options=[
-                {"label": state, "value": abbr} for state, abbr in states_only.items()
+                {"label": state, "value": abbr} for state, abbr in du.states_only.items()
             ],
             value="AZ",
-            clearable=False,
-            className="mt-2",
+            clearable=False,            
         ),
     ],
-    className="px-3",
+    className="px-2 mt-3",
 )
 
 type_dropdown = html.Div(
@@ -377,11 +374,10 @@ type_dropdown = html.Div(
                 {"label": "Special District", "value": "special"},
             ],
             value="city",
-            clearable=False,
-            className="mt-2",
+            clearable=False,            
         ),
     ],
-    className="p-3",
+    className="px-2 mt-3",
 )
 
 selected_rows = html.Div(
@@ -407,7 +403,7 @@ selected_rows = html.Div(
             style={"height": "300px"},
         ),
     ],
-    className="p-3 mt-5 border",
+    className="px-2 mt-5 border",
 )
 
 
@@ -419,7 +415,7 @@ exp_rev_button_group = html.Div(
                 dbc.Button("Revenue", id="city_revenue"),
             ],
             vertical=True,
-            className="m-1 btn-sm btn-block p3",
+            className="m-1 btn-sm btn-block",
         )
     ]
 )
@@ -437,7 +433,7 @@ year_slider = html.Div(
             },
             value=int(START_YR),
             included=False,
-            className="mt-3  p-3 mb-5",
+            className="mt-3  px-2 mb-5",
         )
     ]
 )
@@ -463,8 +459,7 @@ sub_category_dropdown = html.Div(
             id="city_subcategory_dropdown",
             options=[{"label": "All Sub Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in init_df_exp["Description"].unique()],
-            placeholder="Select a sub category",
-            style={"font-size": "90%"},
+            placeholder="Select a sub category",           
             #  value="Police protection",
         ),
     ],
@@ -497,7 +492,7 @@ dashboard_card = dbc.Card(
 
 layout = dbc.Container(
     [
-        dbc.Container((navbar), fluid=True),
+        html.Div(navbar),
         html.Div(
             [
                 dcc.Store(id="store_selected_cities", data=init_selected_cities),
@@ -519,10 +514,10 @@ layout = dbc.Container(
                                         + [state_dropdown]
                                         + [type_dropdown]
                                         + [year_slider],
-                                        className="m-1 bg-white border",
+                                        className="mt-1, ml-1 bg-white border",
                                     ),
                                     width={"size": 2, "order": 1},
-                                    className="mt-5",
+                                    className="mt-2 mb-5",
                                 ),
                                 dbc.Col(
                                     html.Div(
@@ -554,13 +549,14 @@ layout = dbc.Container(
                                         [category_dropdown]
                                         + [sub_category_dropdown]
                                         + [selected_rows],
-                                        className="mt-5 mb-5 mr-3 ml-3 p-2 border bg-white",
+                                        className=" pt-2 mt=5 ml-1 border bg-white",
                                     ),
                                     width={"size": 2, "order": 1},
+                                    className="mt-5 mb-5"
                                 ),
                                 dbc.Col(
                                     html.Div(
-                                        [html.Div(city_tabulator, className="mr-3"),]
+                                        [html.Div(city_tabulator)],                                       
                                     ),
                                     width={"size": 10, "order": 2},
                                     className="mb-5",
@@ -570,7 +566,7 @@ layout = dbc.Container(
                     ]
                 ),
             ],
-            className="bg-primary mr-5 ml-5",
+            className="bg-primary",
         ),
         ###########################   footer #########################
         html.Div(  # footer
@@ -644,8 +640,8 @@ def update_exp_or_rev(exp_click, rev_click, state):
 
     report_type = "Revenue" if input_id == "city_revenue" else "Expenditures"
 
-    if (input_id == "city_state") and (state not in exp):
-        exp[state], rev[state] = get_df_exp_rev(state)
+    #if (input_id == "city_state") and (state not in exp):
+    #    exp[state], rev[state] = get_df_exp_rev(state)
 
     return report_type, options, None
 
@@ -662,9 +658,9 @@ def update_exp_or_rev(exp_click, rev_click, state):
 def update_sub_category_dropdown(cat, title):
 
     if "Expenditures" in title:
-        dff = df_summary[df_summary["Type"] == "E"]
+        dff = du.df_summary[du.df_summary["Type"] == "E"]
     else:
-        dff = df_summary[df_summary["Type"] == "R"]
+        dff = du.df_summary[du.df_summary["Type"] == "R"]
 
     if (cat is None) or (cat == "all"):
         options = [{"label": "All Sub Categories", "value": "all"}] + [
@@ -883,7 +879,7 @@ def update_city_cards(
             children=[
                 dcc.Graph(
                     id={"type": "sunburst_output", "index": city_code},
-                    style={"height": 200},
+                    style={"height": 225},
                     config={"displayModeBar": False},
                     figure=make_sunburst(df_city, path, df_city[column], "",),
                 ),
@@ -899,3 +895,4 @@ def update_city_cards(
 
 if __name__ == "__main__":
     app.run_server(debug=True)
+

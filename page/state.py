@@ -32,11 +32,6 @@ with open(DATA_PATH.joinpath("df_exp.pickle"), "rb") as handle:
 with open(DATA_PATH.joinpath("df_rev.pickle"), "rb") as handle:
     df_rev = pickle.load(handle)
 
-#with open(DATA_PATH.joinpath("census.pickle"), "rb") as handle:
-#    census = pickle.load(handle)
-
-# df_cen = census[2017]
-
 
 # Update this when new data is added:
 YEARS = [str(year) for year in range(2012, 2018)]
@@ -68,7 +63,6 @@ def table_yr(dff, year):
 
 #####################  Read Population by State  ##############################
 
-
 def read_census_pop():
     """ Returns a df of stat population based on census data:
         https://www.census.gov/data/tables/time-series/demo/popest/2010s-state-total.html
@@ -84,12 +78,10 @@ def read_census_pop():
     df_state_pop["State"] = df_state_pop["State"].str.replace(".", "")
     return df_state_pop
 
-
 df_pop = read_census_pop()
 
 
 ######################    Figures   ###########################################
-
 
 def make_sunburst(df, path, values, title):
 
@@ -98,12 +90,10 @@ def make_sunburst(df, path, values, title):
         path=path,
         values=values,
         color="Category",
-        color_discrete_map=du.sunburst_colors
-        #       hover_data=['Population']
+        color_discrete_map=du.sunburst_colors       
     )
     fig.update_traces(
-        go.Sunburst(
-            # hovertemplate='<b>%{label} </b> <br>%{customdata[0]}<br> $%{value:,.0f}'
+        go.Sunburst(           
             hovertemplate="<b>%{label} </b> $%{value:,.0f}"
         ),
         insidetextorientation="radial",
@@ -112,13 +102,8 @@ def make_sunburst(df, path, values, title):
         title_text=title,
         title_x=0.5,
         title_xanchor="center",
-        title_yanchor="top",
-        #  title_y=0.95,
-        margin=go.layout.Margin(b=10, t=30, l=10, r=10),
-        # yaxis=go.layout.YAxis(tickprefix="$", fixedrange=True),
-        # xaxis=go.layout.XAxis(fixedrange=True),
-        # annotations=total_labels,
-        # paper_bgcolor="whitesmoke",
+        title_yanchor="top",        
+        margin=go.layout.Margin(b=10, t=30, l=10, r=10),        
         clickmode="event+select",
     )
     return fig
@@ -186,10 +171,10 @@ def make_choropleth(dff, title, state, year):
         title_y=1,
         font=dict(size=14),
         geo_scope="usa",  # limite map scope to USA
-        margin=go.layout.Margin(b=10, t=20, l=20, r=1),
+        margin=go.layout.Margin(b=10, t=20, l=10, r=1),
         yaxis=go.layout.YAxis(tickprefix="$", fixedrange=True),
         xaxis=go.layout.XAxis(fixedrange=True),
-        paper_bgcolor="#eeeeee",
+        paper_bgcolor="#eeeeee",        
         annotations=[
             dict(
                 x=1,
@@ -214,7 +199,6 @@ def make_choropleth(dff, title, state, year):
 
 #####################  figure and data summary div components ################
 
-
 def make_stats_table(population, dff_exp, selected, year):
     per_capita = dff_exp[get_col("Per Capita", year)].astype(float).sum() / selected
     total_exp = dff_exp[get_col("Amount", year)].astype(float).sum()
@@ -232,7 +216,6 @@ def make_stats_table(population, dff_exp, selected, year):
         ]
     )
     # row3 = html.Tr([html.Td("${:0,.0f}".format(total_exp)), html.Td("Total")])
-
     table_body = [html.Tbody([row2, row1])]
 
     return dbc.Table(
@@ -265,7 +248,6 @@ usa_sunburst = html.Div(
             ),
         ),
     ],
-  #  className="border",
 )
 
 state_sunburst = html.Div(
@@ -290,8 +272,7 @@ state_sunburst = html.Div(
                 START_YR,
             ),
         ),
-    ],
-  #  className="border",
+    ], 
 )
 
 mystate_sunburst = html.Div(
@@ -302,7 +283,7 @@ mystate_sunburst = html.Div(
                 df_exp[df_exp["State"] == "Arizona"],
                 ["State", "Category"],
                 get_col("Amount", START_YR),
-                "START_YR My State",
+                START_YR + " My State",
             ),
             style={"height": "225px"},
             config={"displayModeBar": False},
@@ -317,7 +298,7 @@ mystate_sunburst = html.Div(
             ),
         ),
     ],
-   # className="border",
+  
 )
 
 category_sunburst = html.Div(
@@ -343,12 +324,10 @@ map = html.Div(
             id="map",
             figure=make_choropleth(
                 df_exp, str(START_YR) + " Per Capita Expenditures", "Alabama", START_YR,
-            ),
-            style={"height": "400px"},
-            config={"displayModeBar": False},
+            ),               
         )
     ],
-    className="mt-3",
+    className="mt-2",
 )
 
 ####################### Dash Tables  ##########################################
@@ -463,13 +442,12 @@ def make_table(dff):
                         "if": {"column_id": "sparkline"},
                         "width": 100,
                         "font-family": "Sparks-Bar-Extrawide",
-                        "padding-right": "20px",
-                        "padding-left": "20px",
+                        "padding-right": "15px",
+                        "padding-left": "15px",
                     },
                 ],
             )
-        ],
-        id="table_div",
+        ],       
     )
 
 
@@ -500,7 +478,7 @@ year_slider = html.Div(
             },
             value=int(START_YR),
             included=False,
-            className="mt-3  p-3 mb-5",
+            className="mt-3  px-2 mb-5",
         )
     ]
 )
@@ -508,7 +486,7 @@ year_slider = html.Div(
 
 state_dropdown = html.Div(
     [
-        # html.Div('Select State or All:', style={'font-weight':'bold'}),
+        html.Div('Select State or All:', style={'font-weight':'bold'}),
         dcc.Dropdown(
             id="state",
             options=[{"label": "All States", "value": "USA"}]
@@ -518,8 +496,9 @@ state_dropdown = html.Div(
             className="mt-2",
         )
     ],
-    className="px-3",
+    className="px-2",
 )
+
 mystate_dropdown = html.Div(
     [
         dcc.Dropdown(
@@ -543,7 +522,7 @@ category_dropdown = html.Div(
             value='Public Safety',
         ),
     ],
-    className="px-3 mt-3",
+    className="px-2 mt-3",
 )
 
 sub_category_dropdown = html.Div(
@@ -558,7 +537,7 @@ sub_category_dropdown = html.Div(
             value='Police protection',
         ),
     ],
-    className="px-3 mt-3",
+    className="px-2 mt-3",
 )
 
 state_local_dropdown = html.Div(
@@ -574,7 +553,7 @@ state_local_dropdown = html.Div(
             placeholder="Select State or Local",
         ),
     ],
-    className="px-3 mt-3",
+    className="px-2 mt-3",
 )
 
 
@@ -643,14 +622,14 @@ layout = dbc.Container(
                                     [exp_rev_button_group]
                                     + [state_dropdown]
                                     + [year_slider],
-                                    className="m-1 mb-5 border bg-white",
+                                    className=" mb-5 border bg-white",
                                     style={"height": "375px"},
                                 ),
                                 html.Div(
                                     [category_dropdown]
                                     + [sub_category_dropdown]
                                     + [state_local_dropdown],
-                                    className="mt-3 m-1 pt-2 border bg-white",
+                                    className="mt-3  pt-2 border bg-white",
                                     style={"height": "375px"},
                                 ),
                             ],
@@ -660,21 +639,21 @@ layout = dbc.Container(
                         dbc.Col(  # map and table stacked
                             [map] + [make_table(df_exp)],
                             width={"size": 8, "order": 2},
-                            className=" bg-light mt-3 mb-3",
+                            className="bg-light mt-3 mb-3",
                         ),
                         dbc.Col(  # stacked sunbursts
                             html.Div(
                                 [mystate_dropdown]
                                 + [mystate_sunburst]
                                 + [state_sunburst]
-                                + [usa_sunburst],
-                                className="m-2",
+                                + [usa_sunburst],                              
                             ),
                             width={"size": 2, "order": "last"},
                             className="bg-primary",
                         ),
                     ],
-                    className="bg-primary mr-1 ml-1",
+                    className="bg-primary",
+                  #  no_gutters=True,
 
                 ),
                 dbc.Row(
