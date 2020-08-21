@@ -8,9 +8,10 @@ import dash_core_components as dcc
 # 3rd party js to export as xlsx for Tabulator
 external_scripts = ['https://oss.sheetjs.com/sheetjs/xlsx.full.min.js']
 
+FONT_AWESOME = "https://use.fontawesome.com/releases/v5.10.2/css/all.css"
 
 external_stylesheets = [
-   dbc.themes.SPACELAB, 
+   dbc.themes.SPACELAB, FONT_AWESOME
  # 'https://codepen.io/chriddyp/pen/bWLwgP.css' ,    
 ]
 

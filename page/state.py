@@ -331,6 +331,42 @@ map = html.Div(
     className="mt-2", style={"height": "425px"},
 )
 
+
+########### Bar chart    #####################################################
+
+def make_bar_charts(dff):
+    return   [
+            dcc.Graph(
+            id=column + '-bar',
+            figure={
+                'data': [
+                    {
+                        'x': dff['State'],
+                        'y': dff[column],
+                        'type': 'bar',
+                        # 'marker': {'color': colors},
+                    }
+                ],
+                'layout': {
+                    'xaxis': {'automargin': True},
+                    'yaxis': {
+                        'automargin': True,
+                        'title': {'text': column}
+                    },
+                    'height': 250,
+                    'margin': {'t': 10, 'l': 10, 'r': 10},
+                },
+            },
+        )
+        for column in ['Amount', 'Per Capita', 'Population'] if column in dff
+    ]    
+   
+
+
+
+
+
+
 ####################### Dash Tables  ##########################################
 
 
@@ -430,23 +466,14 @@ def make_table(dff):
                 ],
                 style_data_conditional=[
                     {
-                        "if": {"state": "active"},
-                        "backgroundColor": "rgba(150, 180, 225, 0.2)",
-                        "border": "1px solid blue",
-                    },
-                    {
-                        "if": {"state": "selected"},
-                        "backgroundColor": "rgba(0, 116, 217, .03)",
-                        "border": "1px solid blue",
-                    },
-                    {
                         "if": {"column_id": "sparkline"},
                         "width": 100,
                         "font-family": "Sparks-Bar-Extrawide",
+                        "font-size": "18px",
                         "padding-right": "15px",
                         "padding-left": "15px",
                     },
-                ],
+                ]
             )
         ],       
     )
@@ -558,6 +585,15 @@ state_local_dropdown = html.Div(
 )
 
 
+clear_button = html.Div(
+    [
+        dbc.Button('Clear all Filters', id='clear',
+                  n_clicks=0, color="light", className="mt-4 btn-sm")
+        
+    ]
+)
+
+
 #####################   Header Cards and Markdown #############################
 first_card = dbc.Card(
     dbc.CardBody(
@@ -633,6 +669,10 @@ layout = dbc.Container(
                                     className="mt-3  pt-2 border bg-white",
                                     style={"height": "375px"},
                                 ),
+                                html.Div(
+                                    clear_button,
+                                    className="mt=5 ml-1",
+                                        )
                             ],
                             width={"size": 2, "order": 1},
                             className="mt-5 ",
@@ -657,23 +697,46 @@ layout = dbc.Container(
                   #  no_gutters=True,
 
                 ),
-                dbc.Row(
-                    [
-                        dbc.Col(  # large sunburst
-                            category_sunburst,
-                            width={"size": 8, "offset": 2, "order": "last"},
-                            className="border ",
-                           
-                        )
-                    ],
-                     className="bg-white m-1",
-                ),
-                ###########################   footer #########################
-                html.Div(  # footer
-                    [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5 small"))),]
-                ),
             ]
         ),
+            ########################  bar charts #######################
+        html.Div(
+            [
+                dbc.Row(
+                    dbc.Col(html.H5(id="bar_title", className="bg-white text-center"),
+                             width={"size": 10, "offset": 2, "order": 2},
+                             ),
+                    className="bg-primary pt-5 pr-5"
+                    ),
+                 
+
+                dbc.Row(
+                    [
+                        dbc.Col(html.Div(id='bar_charts_container'),                            
+                                width={"size": 10, "offset": 2, "order": 2},
+                             
+                        )
+                    ], className="bg-primary pr-5 pb-5"                  
+                )                    
+            ], className="bg-white"
+        ),
+        ########################  large sunurst  ######################
+        dbc.Row(
+            [
+                dbc.Col(  # large sunburst
+                    category_sunburst,
+                    width={"size": 8, "offset": 2, "order": "last"},
+                    className="border ",
+                           
+                )
+            ],
+                className="bg-white m-1",
+        ),
+        ###########################   footer #########################
+        html.Div(  # footer
+            [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5 small"))),]
+        ),
+        
     ],
     fluid=True,
 )
@@ -694,12 +757,19 @@ layout = dbc.Container(
         Output("category_dropdown", "value"),
         Output("state_local_dropdown", "value"),
     ],
-    [Input("expenditures", "n_clicks"), Input("revenue", "n_clicks")],
+    [
+        Input("expenditures", "n_clicks"), 
+        Input("revenue", "n_clicks"),
+        Input('clear', "n_clicks")
+    ],
     prevent_initial_call=True,
 )
-def update_exp_or_rev(exp, rev):
+def update_exp_or_rev(exp, rev, clear_click):
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if clear_click and (input_id == 'clear'):
+        return dash.no_update, dash.no_update, None, None
 
     dff = df_rev if input_id == "revenue" else df_exp
 
@@ -711,8 +781,19 @@ def update_exp_or_rev(exp, rev):
 
 
 #####  update state dropdown with map click
-@app.callback(Output("state", "value"), [Input("map", "clickData")])
-def update_state_dropdown(clickData):
+@app.callback(Output("state", "value"),               
+        [
+            Input("map", "clickData"),
+            Input('clear', "n_clicks")
+        ]
+)
+def update_state_dropdown(clickData, clear_click):
+    ctx = dash.callback_context
+    input_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if input_id == 'clear':
+        return 'USA'
+
     if clickData is None:
         raise PreventUpdate
     else:
@@ -726,10 +807,10 @@ def update_state_dropdown(clickData):
         Output("subcategory_dropdown", "options"),
         Output("subcategory_dropdown", "value"),
     ],
-    [Input("category_dropdown", "value"), Input("store_exp_or_rev", "data")],
+    [Input("category_dropdown", "value"), Input("store_exp_or_rev", "data"), Input('clear', "n_clicks")],
     prevent_initial_call=True,
 )
-def update_sub_category_dropdown(cat, exp_or_rev):
+def update_sub_category_dropdown(cat, exp_or_rev, clear_click):
 
     dff = df_exp if exp_or_rev == "Expenditures" else df_rev
 
@@ -819,6 +900,21 @@ def update_mystate(mystate, year, exp_or_rev):
         make_stats_table(population, dff, selected, year),
     )
 
+#@app.callback(
+#   Output('table', "style_data_conditional"),
+#   [ Input("table", "active_cell")]
+#)
+#def update_row_color(active):
+#    style= style_data_conditional.copy()
+#    if active:        
+#        style.append(
+#                {   "if": {"row_index": active['row']}, 
+#                    'backgroundColor': 'rgba(150, 180, 225, 0.2)',
+#                    'border': '1px solid blue'
+#                },            
+#        )
+#        return style
+
 
 #######  update map and table  ##################################################\
 @app.callback(
@@ -826,6 +922,9 @@ def update_mystate(mystate, year, exp_or_rev):
         Output("map", "figure"),
         Output("table", "data"),
         Output("sunburst_cat", "figure"),
+        Output("bar_charts_container", "children"),
+        Output("bar_title", "children"),
+       
     ],
     [
         Input("store_exp_or_rev", "modified_timestamp"),
@@ -834,16 +933,22 @@ def update_mystate(mystate, year, exp_or_rev):
         Input("category_dropdown", "value"),
         Input("subcategory_dropdown", "value"),
         Input("state_local_dropdown", "value"),
+        Input('table', "derived_viewport_data" )
+       
     ],
     [State("store_exp_or_rev", "data")],
   #  prevent_initial_call=True,
 )
-def update_map(__, year, state, cat, subcat, local, exp_or_rev):
+def update_map(__, year, state, cat, subcat, local, viewport, exp_or_rev, ):
 
     dff_map = df_rev if exp_or_rev == "Revenue" else df_exp
     dff_table = dff_sunburst = dff_map.copy()
     update_title = " ".join([str(year), exp_or_rev, "Per Capita by State"])
     sunburst_title = " ".join([str(year), exp_or_rev, "Per Capita All States"])
+
+   
+    
+   
 
     # filter
     if state != "USA":
@@ -900,10 +1005,13 @@ def update_map(__, year, state, cat, subcat, local, exp_or_rev):
         sunburst_title,
     )
 
+       
     return (
         make_choropleth(dff_map, update_title, state, str(year)),
         dff_table.to_dict("records"),
         figure,
+        make_bar_charts(pd.DataFrame(viewport)),
+        update_title
     )
 
 

@@ -33,6 +33,7 @@ from app import app, navbar, footer
 
 pd.set_option("display.max_rows", 100)
 pd.set_option("display.max_columns", 12)
+pd.options.display.width = 0
 
 
 # Update this when new data is added:
@@ -146,7 +147,7 @@ def make_sparkline(dff, spark_col, spark_yrs):
 #############  Optional columns to show it the table
 
 city_columns=[
-       # {"id": "id", "name": [' ', "id"], "type": "text"},
+        {"id": "id", "name": [' ', "id"], "type": "text"},
         {"id": "ST", "name": [' ', "State"], "type": "text"},
         {"id": "County name", "name": [' ', "County"], "type": "text"},
         {"id": "ID name", "name": [' ', "Name"], "type": "text"},
@@ -155,7 +156,7 @@ city_columns=[
                     
         {
             "id": "Amount",
-            "name": ['in Thousands $',"Total Amount", ],
+            "name": [' ',"Total Amount", ],
             "type": "numeric",
             "format": FormatTemplate.money(0),
         },
@@ -216,15 +217,17 @@ city_datatable = html.Div(
                 sort_mode="multi",
                 export_format="xlsx",
                 export_headers="display",
-                row_selectable ='multi',               
-                is_focused=False,
-                cell_selectable=False,
-                page_size=20,
+                row_selectable ='multi', 
+                row_deletable = True,
+               # is_focused=False,
+                #cell_selectable=False,
+                page_size=50,
                 style_table={
                     "overflowY": "scroll",
                     "border": "thin lightgrey solid",
-                    "maxHeight": "450px",
+                    "maxHeight": "500px",
                 },
+                style_header={"font-size": "16px"},
                 style_cell={
                     "textAlign": "left",
                     "font-family": "arial",
@@ -244,7 +247,7 @@ city_datatable = html.Div(
                     } for c in ['sparkline_Per Capita', 'sparkline_Per Student']
                 ],
             )
-        ],       
+        ], className="mr-1"    
     )
 
 
@@ -279,53 +282,36 @@ def make_sunburst(df, path, values, title):
 
 
 def make_stats_table(dff, clicked_on):
-    row1 = []
-    row2 = []
+    row1 = [];  row2 = [] ; row3 = []
     per_capita = dff["Per Capita"].astype(float).sum()
     per_student = dff["Per Student"].astype(float).sum()
-    total_amt = dff["Amount"].astype(float).sum() * 1000
+    total_amt = dff["Amount"].astype(float).sum()
+    
     if clicked_on is None:
         clicked_on = ""
 
-    if per_capita > 0:
-        population = total_amt / per_capita
-        row1 = html.Tr(
+    def format_row(amt, title, clickedon):
+        print(title, amt)
+        return html.Tr(
             [
-                html.Td("{:0,.0f} Population".format(population), 
+                html.Td("{:0,.0f} {} {}".format(amt, title, clickedon), 
                         style={"text-align": "center"}),              
             ]
         )
-        row2 = html.Tr(
-            [
-                html.Td("${:0,.0f} Per Capita {}".format(per_capita, clicked_on),
-                       style={"text-align": "center"}),
-            
-            ]
-        )
+    if per_capita > 0:  
+        population = total_amt / per_capita        
+        row1 = format_row(population, 'Population', "")
+        row2 = format_row(per_capita, 'Per Capita', clicked_on)        
+        row3 = format_row(total_amt, 'Total Amount', clicked_on) 
+        
     elif per_student > 0:
         enrollment = total_amt / per_student
-        row1 = html.Tr(
-            [
-                html.Td("{:0,.0f} School Enrollment".format(enrollment), 
-                        style={"text-align": "center"}),
-              
-            ]
-        )
-        row2 = html.Tr(
-            [
-                html.Td("${:0,.0f} Per Student {}".format(per_student, clicked_on), 
-                        style={"text-align": "center"}),
-               
-            ]
-        )
+        row1 = format_row(enrollment, 'School Enrollment', "")
+        row2 = format_row(per_student, 'Per Student', clicked_on)        
+        row3 = format_row(total_amt, 'Total Amount', clicked_on) 
     else:
-        row2 = html.Tr(
-            [
-                html.Td("${:0,.0f} Total Amount {}".format(total_amt, clicked_on),
-                       style={"text-align": "center"}),               
-            ]
-        )
-    table_body = [html.Tbody([row2, row1])]
+        row1 = format_row(total_amt, 'Total Amount', clicked_on)
+    table_body = [html.Tbody([row2, row3, row1])]
 
     return dbc.Table(
         table_body,
@@ -338,14 +324,9 @@ def make_stats_table(dff, clicked_on):
 ########### Bar chart    #####################################################
 
 def make_bar_charts(dff):
-    print(dff)
-    dff=dff[dff['Amount_2017'] > 100000000]
-    print(dff)
-    return  html.Div([
-        html.H1('HI THERE'),
-    [    
-    dcc.Graph(
-            id=column + '-bar',
+    return  [          
+         dcc.Graph(
+            id=column + '-city_bar',
             figure={
                 'data': [
                     {
@@ -366,10 +347,10 @@ def make_bar_charts(dff):
                 },
             },
         )
-        for column in ['Amount_2017', 'Per Capita_2017', 'Per Student_2017'] if column in dff
-    ]
+        for column in ['Amount', 'Per Capita', 'Per Student', 'Population'] if column in dff
+    ]    
+   
     
-])
 
 ########### buttons, dropdowns, check boxes, sliders  #########################
 
@@ -423,8 +404,16 @@ exp_rev_button_group = html.Div(
     ]
 )
 
-year_slider = html.Div(
+clear_button = html.Div(
     [
+        dbc.Button('Clear all Filters', id='city_clear',
+                  n_clicks=0, color="light", className="mt-4 btn-sm")
+        
+    ]
+)
+
+year_slider = html.Div(
+    [ 
         dcc.Slider(
             id="city_year",
             min=int(min(YEARS)),
@@ -436,7 +425,7 @@ year_slider = html.Div(
             },
             value=int(START_YR),
             included=False,
-            className="mt-3  px-2 mb-5",
+            className="mt-3  px-4 mb-5",
         )
     ]
 )
@@ -448,7 +437,7 @@ county_dropdown = html.Div(
             id="city_county_dropdown",
             options=[{"label": "All Counties", "value": "all"}]
             + [{"label": c, "value": c} for c in init_df_exp["County name"].dropna().unique()],
-            placeholder="Select a county",
+           # placeholder="Select a county",
            
         ),
     ],
@@ -462,7 +451,7 @@ city_dropdown = html.Div(
             id="city_name_dropdown",
             options=[{"label": "All ", "value": "all"}]
             + [{"label": c, "value": c} for c in init_df_exp["ID name"]. dropna().unique()],
-            placeholder="Select a county",
+          #  placeholder="Select a city",
            
         ),
     ],
@@ -476,7 +465,7 @@ category_dropdown = html.Div(
             id="city_category_dropdown",
             options=[{"label": "All Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in init_df_exp["Category"].unique()],
-            placeholder="Select a category",
+          #  placeholder="Select a category",
             #  value="Public Safety",
         ),
     ],
@@ -490,7 +479,7 @@ sub_category_dropdown = html.Div(
             id="city_subcategory_dropdown",
             options=[{"label": "All Sub Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in init_df_exp["Description"].unique()],
-            placeholder="Select a sub category",           
+        #    placeholder="Select a sub category",           
             #  value="Police protection",
         ),
     ],
@@ -498,7 +487,7 @@ sub_category_dropdown = html.Div(
 )
 
 
-#####################   Header Cards and Markdown #############################
+#####################   Header Cards and Markdown help text#############################
 first_card = dbc.Card(
     dbc.CardBody(
         [
@@ -518,6 +507,12 @@ dashboard_card = dbc.Card(
         ]
     )
 )
+
+help =  html.Div([
+        html.I(className="fas fa-question-circle fa-lg", id="target"),
+        dbc.Tooltip("Some help text", target="target"),
+    ],
+    className="p-5 text-muted")
 
 ########################   Layout #############################################
 
@@ -541,7 +536,7 @@ layout = dbc.Container(
                                 dbc.Col([  # controls
                                     html.Div(
                                         [exp_rev_button_group]
-                                        + [year_slider],                                                                              
+                                      + [year_slider],                                                                              
                                         className="mt-1, ml-1 bg-white border",
                                     ),
                                     html.Div(                                       
@@ -580,15 +575,20 @@ layout = dbc.Container(
                     [
                         dbc.Row(
                             [
-                                dbc.Col(  # controls
-                                    html.Div(
+                                dbc.Col(                                  
+                                    [
+                                        html.Div(
                                         [category_dropdown]
-                                        + [sub_category_dropdown],
-                                                                           
-                                        className=" pt-2 pb-2 mt=5 ml-1 border bg-white",
-                                    ),
+                                      + [sub_category_dropdown],         
+                                            className=" pt-2 pb-2 mt=5 ml-1 border bg-white",
+                                        ),                                    
+                                        html.Div(clear_button,
+                                                 className="mt=5 ml-1",
+                                        ),
+                                    ],
                                     width={"size": 2, "order": 1},
                                     className="mt-5 mb-5"
+                                    
                                 ),
                                 dbc.Col(
                                     html.Div(
@@ -607,19 +607,15 @@ layout = dbc.Container(
                         [
                             dbc.Col( html.Div(id='city_bar_charts_container'),
                                     width={"size": 10, "offset": 2, "order": 2},
-                                    className="mt-5",
+                                    className="mb-5 mr-4",
                             )
-
-                        ]
-
-                        
-                    )
-                    
+                        ]                        
+                    )                    
                 ])
             ],
             className="bg-primary",
         ),
-
+        html.Div(help),
         ###########################   footer #########################
         html.Div(  # footer
             [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5 small"))),]
@@ -638,16 +634,21 @@ layout = dbc.Container(
         Output("store_city_exp_or_rev", "data"),
         Output("city_category_dropdown", "options"),
         Output("city_category_dropdown", "value"),
+        Output("city_name_dropdown", "value"),
     ],
     [
         Input("city_expenditures", "n_clicks"),
-        Input("city_revenue", "n_clicks"),       
+        Input("city_revenue", "n_clicks"),   
+        Input('city_clear', "n_clicks")
     ],
 )
-def update_exp_or_rev(exp_click, rev_click):
+def update_exp_or_rev(exp_click, rev_click, clear_click):
 
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if clear_click and (input_id == 'city_clear'):
+        return dash.no_update, dash.no_update, None, None
 
     # update category dropdown options
     categories = du.revenue_cats if input_id == "city_revenue" else du.expenditure_cats
@@ -657,7 +658,9 @@ def update_exp_or_rev(exp_click, rev_click):
 
     report_type = "Revenue" if input_id == "city_revenue" else "Expenditures"  
 
-    return report_type, options, None
+    
+
+    return report_type, options, None, dash.no_update
 
 
 ####### Update counties when state changes
@@ -676,6 +679,8 @@ def update_counties(state):
     return [{"label": "All Counties", "value": "all"}] + [
         {"label": c, "value": c} for c in exp[state]["County name"].dropna().unique()
     ], checked
+
+
 
 ####### Update city names when county and type changes
 @app.callback(
@@ -715,12 +720,16 @@ def update_counties(state, county, type):
 @app.callback(
     [
         Output("city_subcategory_dropdown", "options"),
-        Output("city_subcategory_dropdown", "value"),
+        Output("city_subcategory_dropdown", "value"),        
     ],
-    [Input("city_category_dropdown", "value"), Input("store_city_exp_or_rev", "data")],
+    [
+        Input("city_category_dropdown", "value"), 
+        Input("store_city_exp_or_rev", "data"),
+        Input('city_clear', "n_clicks")
+    ],
     prevent_initial_call=True,
 )
-def update_sub_category_dropdown(cat, exp_or_rev):
+def update_sub_category_dropdown(cat, exp_or_rev, clear_click):
 
     if exp_or_rev == "Expenditures":
         dff = du.df_summary[du.df_summary["Type"] == "E"]
@@ -764,7 +773,7 @@ def update_sub_category_dropdown(cat, exp_or_rev):
 def update_city_table(
     exp_or_rev, year, cat, subcat, clicked_on, state, type, county, name, viewport
 ):
-
+   
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
        
@@ -827,7 +836,7 @@ def update_city_table(
     df_table = df_table.loc[:, (df_table != 0).any(axis=0)]
 
     if df_table.empty:
-        return dash.no_update, dash.no_update
+        return [], [], []
 
     # school district columns
     if (df_table["Gov Type"] == "5").all():
@@ -851,33 +860,10 @@ def update_city_table(
 
 
     dff= df_table[df_table['id'].isin(viewport)]
-    bar_charts = [   
-         dcc.Graph(
-            id=column + '-bar',
-            figure={
-                'data': [
-                    {
-                        'x': dff['ID name'],
-                        'y': dff[column],
-                        'type': 'bar',
-                       # 'marker': {'color': colors},
-                    }
-                ],
-                'layout': {
-                    'xaxis': {'automargin': True},
-                    'yaxis': {
-                        'automargin': True,
-                        'title': {'text': column}
-                    },
-                    'height': 250,
-                    'margin': {'t': 10, 'l': 10, 'r': 10},
-                },
-            },
-        )
-        for column in ['Amount', 'Per Capita', 'Per Student', 'Population'] if column in dff
-    ]
+    dff= dff.set_index('id').reindex(viewport)
 
-   
+    bar_charts = [] if dff.empty else make_bar_charts(dff)
+
     return df_table.to_dict('records'), columns, bar_charts
 
 
@@ -895,12 +881,13 @@ def update_city_table(
         Input({"type": "sunburst_output", "index": ALL}, "clickData"),      
         Input("city_table", "selected_row_ids"),
         Input("city_state", "value"),
+        Input('city_clear', "n_clicks")
     ],
     [State("store_clicked_on", "data"),
      State('city_table','selected_rows')],
 )
 def update_city_cards(
-    exp_or_rev, year, clickData, selected_cities, state, clicked_on, checked
+    exp_or_rev, year, clickData, selected_cities, state, clicked_on, checked, clear_click
 ):
     # initializes to one checked box to display a figure at startup.
     # todo - find a better way? could be annoying?
@@ -908,30 +895,29 @@ def update_city_cards(
         selected_cities = init_city
 
  
-    input_id = dash.callback_context.triggered[0]["prop_id"]
+    input_id = dash.callback_context.triggered[0]["prop_id"]   
    
-   
-    if (selected_cities is None) or (selected_cities == []) or ('city_state' in input_id):
-     
+    if (selected_cities is None) or (selected_cities == []) or ('city_state' in input_id):     
         return [], [], []
+
+    # Reset clicked_on if switch reports or clear button 
+    if clear_click and ('city_clear' in input_id):
+        clicked_on = None    
+    if "store_city_exp_or_rev" in input_id:
+        clicked_on = None
 
     title = "".join(
         [str(year), " ", exp_or_rev, " for selected cities, counties and districts"]
     )
-
-    df = rev[state] if exp_or_rev == "Revenue" else exp[state]
-   
-    df_cards = df[df["id"].isin(selected_cities)].copy()   
-  
+    df = rev[state] if exp_or_rev == "Revenue" else exp[state]   
+    df_cards = df[df["id"].isin(selected_cities)].copy()     
     df_cards = year_filter(df_cards, str(year))
 
     categories = list(du.revenue_cats) + list(du.expenditure_cats)
     path = ["ID name", "Category"]  # default if no click data
 
     
-    # Reset clicked_on if switch reports
-    if "store_city_exp_or_rev" in input_id:
-        clicked_on = None
+    
 
     # Find segment clicked on in sunburst
     if "index" in input_id:
@@ -939,8 +925,7 @@ def update_city_cards(
         # this converts the code to the name
         ID_code = input_id.split('"')[3]
         
-        ID_name = df[df['id'] == ID_code]['ID name'].iloc[0]
-      
+        ID_name = df[df['id'] == ID_code]['ID name'].iloc[0]     
 
 
         for points in clickData:
@@ -982,11 +967,7 @@ def update_city_cards(
             ]
         new_element = html.Div(
             style={"width": "25%", "display": "inline-block", "padding": 10},
-            children=[
-                #html.Div(
-                #     html.Button('X', id={"type": "delete_button", "index": city_code}, n_clicks=0),
-                #        className='align-right'
-                #),
+            children=[               
                 dcc.Graph(
                     id={"type": "sunburst_output", "index": city_code},
                     style={"height": 225},

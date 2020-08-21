@@ -13,6 +13,24 @@
     transform: rotate(270deg);
 }
 
+
+
+.dash-spreadsheet-container .sort
+{
+padding-left: 1em !important;
+float: right !important;
+}
+
+
+.svg-inline--fa {
+    display: inline-block;
+    font-size: 18px !important;
+    height: 1em;
+    overflow: visible;
+    vertical-align: -0.125em;
+}
+
+
 @font-face {
   font-family: 'Sparks-Bar-Narrow';
   src: url('https://tools.aftertheflood.com/sparks/output/eot/Sparks-Bar-Narrow.eot');
