@@ -1,6 +1,7 @@
 .dash-table-container .row {
   display: block;
   margin: 0;
+  
 }
 
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner input:not([type=radio]):not([type=checkbox]){
@@ -14,12 +15,8 @@
 }
 
 
+{selector:.export,rule:position:absolute;left:-15px;bottom:-30px}
 
-.dash-spreadsheet-container .sort
-{
-padding-left: 1em !important;
-float: right !important;
-}
 
 
 .svg-inline--fa {

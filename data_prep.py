@@ -69,7 +69,7 @@ def census_financial_statement(filea, fileb):
     dfa = dfa.rename(columns={"Unnamed: 0_level_0": "Line"}, level=0)
     dfa = dfa.rename(columns={"Unnamed: 0_level_1": "Line"}, level=1)
     dfa = dfa.rename(columns={"Unnamed: 1_level_1": "Description"}, level=1)
-
+   
     dfb = pd.read_excel(
         DATA_PREP_PATH.joinpath(fileb), skiprows=skip, header=[0, 4], nrows=175
     )
@@ -81,7 +81,10 @@ def census_financial_statement(filea, fileb):
         .drop("Description", level=0, axis=1)  #     prior to concat
         .reset_index(drop=True)
     )
-    return pd.concat([dfa, dfb], axis=1, levels=[0, 1])
+    dfc = pd.concat([dfa, dfb], axis=1, levels=[0, 1])   
+    dfc[('Description', 'Description')] = dfc[('Line', 'Line')].map(du.line_desc)
+    return dfc
+    
 
 
 # Creates a dictionary with key as year and values as a df for the census spreadsheets
@@ -172,6 +175,8 @@ def make_df_report(df, year, report):
         {2: "State", 3: "Local"} if year in [2012, 2017] else {3: "State", 4: "Local"}
     )
     columns = dff.columns.to_list()
+    
+    
 
     df_report = []
     for col in columns:
@@ -200,11 +205,13 @@ def make_df_report(df, year, report):
     )
 
     df_report["Description"] = df_report["Description"].str.lstrip()
+    df_report
 
     df_pop = pop_by_yr(year)
     # include popuation and per capita amounts
     df_report = df_report.join(df_pop.set_index("State"), on="State")
-    df_report["Per Capita"] = df_report.Amount / df_report["Population"] * 1000
+    df_report['Amount'] = df_report['Amount'] * 1000
+    df_report["Per Capita"] = df_report.Amount / df_report["Population"]
 
     df_report = df_report.sort_values(
         by=["State", "Category", "Description", "State/Local"]

@@ -20,6 +20,7 @@ with open(DATA_PATH.joinpath("df_summary.pickle"), "rb") as handle:
 
 df_cat_desc = df_summary[["Line", "Category", "Description"]]
 
+line_desc = dict(zip(df_summary.Line,df_summary.Description))
 
 
 state_abbr = {   

@@ -2,6 +2,8 @@ import dash
 from dash.dependencies import Input, Output, State
 import dash_table
 import dash_table.FormatTemplate as FormatTemplate
+from dash_table.Format import (Format, Group)
+
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.exceptions import PreventUpdate
@@ -16,6 +18,8 @@ import pathlib
 import pickle
 
 from app import app, navbar, footer
+
+
 import data_utilities as du
 
 pd.set_option("display.max_rows", 100)
@@ -33,12 +37,44 @@ with open(DATA_PATH.joinpath("df_rev.pickle"), "rb") as handle:
     df_rev = pickle.load(handle)
 
 
+
+
+# Local  Expenditures and Revenue df
+def get_df_exp_rev(ST):
+    """ loads the df_exp and df_rev files by state and adds Cat and Descr columns"""
+    filename = "".join(["exp_rev_", ST, ".pickle"])
+    with open(DATA_PATH.joinpath(filename), "rb") as handle:
+        city_df_exp, city_df_rev = pickle.load(handle)
+
+    city_df_exp = pd.merge(city_df_exp, du.df_cat_desc, how="left", on="Line")
+    city_df_rev = pd.merge(city_df_rev, du.df_cat_desc, how="left", on="Line")    
+    ### TODO move rename to data prep    
+    #this makes "ID code" the "id" for the dash datatable functions
+    city_df_exp = city_df_exp.rename(columns ={"ID code": 'id'}) 
+    city_df_rev = city_df_rev.rename(columns ={"ID code": 'id'}) 
+    return city_df_exp, city_df_rev
+
+
+
+# initialize Local
+init_STATE = "AL"
+rev = {}; exp = {}
+for STATE in du.abbr_state_noUS:
+    exp[STATE], rev[STATE] =  get_df_exp_rev(STATE)
+
+init_city_df_exp = exp[init_STATE]
+init_city_df_rev = rev[init_STATE]
+
+
+
+# initialize State
 # Update this when new data is added:
 YEARS = [str(year) for year in range(2012, 2018)]
+CITY_YEARS = [str(year) for year in range(2014, 2018)]
 START_YR = "2017"
 
 init_cat = 'Public Safety'
-init_subcat = 'Police protection'
+init_subcat = 'Police Protection'
 init_state_subcats = df_exp[df_exp['Category'] == 'Public Safety']['Description'].unique()
 
 
@@ -50,6 +86,7 @@ def get_col(col_name, year):
     return "".join([col_name, "_", year])
 
 
+#State level  TODO combine with local level
 def table_yr(dff, year):
     """ renames columns to display selected year in table """
     return dff.rename(
@@ -59,6 +96,19 @@ def table_yr(dff, year):
             get_col("Population", year): "Population",
         }
     )
+
+# Local level  TODO combine with state
+def year_filter(dff, year):
+    """ renames columns so selected year doesn't have the year extension ie Amount_2017 """
+    return dff.rename(
+        columns={
+            get_col("Amount", year): "Amount",
+            get_col("Per Capita", year): "Per Capita",
+            get_col("Per Student", year): "Per Student",
+        }
+    )
+
+
 
 
 #####################  Read Population by State  ##############################
@@ -94,7 +144,7 @@ def make_sunburst(df, path, values, title):
     )
     fig.update_traces(
         go.Sunburst(           
-            hovertemplate="<b>%{label} </b> $%{value:,.0f}"
+            hovertemplate="<b>%{label} </b><br> %{percentRoot:,.1%} </br> "
         ),
         insidetextorientation="radial",
     )
@@ -109,14 +159,13 @@ def make_sunburst(df, path, values, title):
     return fig
 
 
-def make_choropleth(dff, title, state, year):
+def make_choropleth(dff, title, state, year):    
     dff = (
-        dff.groupby(["ST"])
+        dff.groupby(["ST", "State"])
         .sum()
         .reset_index()
         .sort_values(get_col("Per Capita", year), ascending=False)
     )
-
     top3 = (
         dff.head(3)
         .astype({get_col("Per Capita", year): "int"})[
@@ -139,14 +188,14 @@ def make_choropleth(dff, title, state, year):
             locations=dff["ST"],  # Spatial coordinates
             z=dff[get_col("Per Capita", year)].astype(int),  # Data to be color-coded
             name="Per Capita",
-            text=dff["ST"],
+            text=dff["State"],
             locationmode="USA-states",  # set of locations match entries in `locations`
             colorscale="amp",
             autocolorscale=False,
             colorbar_title="USD",
         )
     )
-    fig.update_traces(go.Choropleth(hovertemplate="%{z:$,.0f} %{text}"))
+    fig.update_traces(go.Choropleth(hovertemplate="%{z:$,.0f} %{text} <extra></extra>"))
 
     # highlights selected state borders
     if state != "USA":
@@ -163,6 +212,9 @@ def make_choropleth(dff, title, state, year):
                 name="Per Capita",
             )
         )
+
+
+
     fig.update_layout(
         title_text=title,
         title_x=0.5,
@@ -174,7 +226,7 @@ def make_choropleth(dff, title, state, year):
         margin=go.layout.Margin(b=10, t=20, l=10, r=1),
         yaxis=go.layout.YAxis(tickprefix="$", fixedrange=True),
         xaxis=go.layout.XAxis(fixedrange=True),
-        paper_bgcolor="#eeeeee",        
+        paper_bgcolor="#eeeeee",     
         annotations=[
             dict(
                 x=1,
@@ -197,6 +249,7 @@ def make_choropleth(dff, title, state, year):
     return fig
 
 
+
 #####################  figure and data summary div components ################
 
 def make_stats_table(population, dff_exp, selected, year):
@@ -205,17 +258,16 @@ def make_stats_table(population, dff_exp, selected, year):
 
     row1 = html.Tr(
         [
-            html.Td("{:0,.0f}".format(population), style={"text-align": "right"}),
-            html.Td("Population"),
+            html.Td("{:0,.0f} {}".format(population, "Population"),
+                   style={"text-align": "center"}),           
         ]
     )
     row2 = html.Tr(
         [
-            html.Td("${:0,.0f}".format(per_capita), style={"text-align": "right"}),
-            html.Td("Per Capita"),
+            html.Td("${:0,.0f} {}".format(per_capita, "PerCapita All Categories"), 
+                    style={"text-align": "center"}),          
         ]
-    )
-    # row3 = html.Tr([html.Td("${:0,.0f}".format(total_exp)), html.Td("Total")])
+    )   
     table_body = [html.Tbody([row2, row1])]
 
     return dbc.Table(
@@ -226,50 +278,24 @@ def make_stats_table(population, dff_exp, selected, year):
     )
 
 
-usa_sunburst = html.Div(
-    [
-        html.Div(
-            dcc.Graph(
-                id="sunburst_usa",
-                figure=make_sunburst(
-                    df_exp,
-                    ["USA", "Category"],
-                    get_col("Amount", START_YR),
-                    START_YR + " USA",
-                ),
-                style={"height": "225px"},
-                config={"displayModeBar": False},
-            )
-        ),
-        html.Div(
-            id="usa_stats",
-            children=make_stats_table(
-                df_pop[int(START_YR)].astype(float).sum(), df_exp, 51, START_YR
-            ),
-        ),
-    ],
-)
 
 state_sunburst = html.Div(
     [
         dcc.Graph(
             id="sunburst_state",
             figure=make_sunburst(
-                df_exp[df_exp["State"] == "Alabama"],
-                ["State", "Category"],
+                df_exp,
+                 ["USA", "Category"],
                 get_col("Amount", START_YR),
-                START_YR + " by State",
+                START_YR + " USA ",
             ),
-            style={"height": "225px"},
+            style={"height": "200px"},
             config={"displayModeBar": False},
         ),
         html.Div(
             id="state_stats",
             children=make_stats_table(
-                int(df_pop.loc[df_pop["State"] == "Alabama", int(START_YR)]),
-                df_exp[df_exp["State"] == "Alabama"],
-                1,
-                START_YR,
+                df_pop[int(START_YR)].astype(float).sum(), df_exp, 51, START_YR               
             ),
         ),
     ], 
@@ -285,7 +311,7 @@ mystate_sunburst = html.Div(
                 get_col("Amount", START_YR),
                 START_YR + " My State",
             ),
-            style={"height": "225px"},
+            style={"height": "200px"},
             config={"displayModeBar": False},
         ),
         html.Div(
@@ -325,45 +351,51 @@ map = html.Div(
             figure=make_choropleth(
                 df_exp, str(START_YR) + " Per Capita Expenditures", "Alabama", START_YR,
             ),   
+            config={
+            'displayModeBar': True,
+            'displaylogo': False,                                       
+            'modeBarButtonsToRemove': ['zoom2d', 'hoverCompareCartesian', 'hoverClosestCartesian',
+                                      'toggleSpikelines', 'lasso2d', 'select2d']
+          },
             
         )
     ],
-    className="mt-2", style={"height": "425px"},
+    className="mt-2 mb-4", style={"height": "450px"},
 )
 
 
-########### Bar chart    #####################################################
+########### Bar chart
 
-def make_bar_charts(dff):
-    return   [
-            dcc.Graph(
-            id=column + '-bar',
-            figure={
-                'data': [
-                    {
-                        'x': dff['State'],
-                        'y': dff[column],
-                        'type': 'bar',
-                        # 'marker': {'color': colors},
-                    }
-                ],
-                'layout': {
-                    'xaxis': {'automargin': True},
-                    'yaxis': {
-                        'automargin': True,
-                        'title': {'text': column}
-                    },
-                    'height': 250,
-                    'margin': {'t': 10, 'l': 10, 'r': 10},
-                },
-            },
-        )
-        for column in ['Amount', 'Per Capita', 'Population'] if column in dff
-    ]    
+def make_bar_charts(dff, xaxis_col, title):
    
-
-
-
+    return [html.H5(title, className='bg-white text-center')] + [
+        dcc.Graph(
+        id=column + '-bar',
+        figure={
+            'data': [
+                {
+                    'x': dff[xaxis_col],
+                    'y': dff[column],
+                    'type': 'bar',
+                    'hovertemplate': " $%{y:,.0f}<extra></extra>" 
+                    # 'marker': {'color': colors},
+                }
+            ],
+            'layout': {
+                'xaxis': {'automargin': True},
+                'yaxis': {
+                    'automargin': True,
+                    'title': {'text': column}
+                },
+                'height': 250,
+                'margin': {'t': 10, 'l': 10, 'r': 10},
+            },
+        },
+        )
+        for column in [ 'Per Capita',  'Per Student', 'Amount', ] if column in dff
+    ]
+     
+   
 
 
 
@@ -384,6 +416,11 @@ def make_sparkline(dff, spark_col, spark_yrs):
 
     # select columns for sparkline df
     spark_cols = ["".join([spark_col, "_", str(year)]) for year in spark_yrs]
+
+    for col in spark_cols:
+        if col not in dff.columns.tolist():
+            dff[col] = 0
+
     df_spark = dff[spark_cols].copy()
 
     # normalize between 0 and 100  ( (x-x.min)/ (x.max-x.min)*100
@@ -406,7 +443,7 @@ def make_sparkline(dff, spark_col, spark_yrs):
     )
     return df_spark["sparkline"]
 
-
+# State table
 def make_table(dff):
 
     dff = dff.groupby(["State"]).sum().reset_index()
@@ -421,10 +458,10 @@ def make_table(dff):
                     {"id": "State", "name": [' ', "State"], "type": "text"},
                     {"id": "Category", "name": [' ', "Category" ], "type": "text"},
                     {"id": "Description", "name": [' ', "Sub Category" ], "type": "text"},
-                    {"id": "State/Local", "name": [' ', "State or Local" ] , "type": "text"},
+                 #   {"id": "State/Local", "name": [' ', "State or Local" ] , "type": "text"},
                     {
                         "id": "Amount",
-                        "name": ['in Thousands $',"Total Amount", ],
+                        "name": [' ',"Total Amount", ],
                         "type": "numeric",
                         "format": FormatTemplate.money(0),
                     },
@@ -445,15 +482,18 @@ def make_table(dff):
                 data=dff.to_dict("records"),
                 # filter_action='native',
                 sort_action="native",
-                sort_mode="multi",
+                #sort_mode="multi", default is "single"
                 export_format="xlsx",
                 export_headers="display",
+              #  css=[{'selector':'.export','rule':'position:absolute;left:-15px;bottom:-30px'}],
+                css=[{'selector':'.export','rule':'position:absolute;right:-1px;top:-30px'}],
+             #   css=[{'selector':'.export','rule':'position:absolute;left:-15px;top:-5px'}],
                 is_focused=False,
                 cell_selectable=False,
                 style_table={
                     "overflowY": "scroll",
                     "border": "thin lightgrey solid",
-                    "maxHeight": "450px",
+                    "maxHeight": "550px",
                 },
                 style_cell={
                     "textAlign": "left",
@@ -477,6 +517,128 @@ def make_table(dff):
             )
         ],       
     )
+
+#############  Local Table    ################################################
+
+
+#############  Optional columns to show it the table
+
+city_columns=[
+     #   {"id": "id", "name": [' ', "id"], "type": "text"},
+        {"id": "ST", "name": [' ', "State"], "type": "text"},
+        {"id": "County name", "name": [' ', "County"], "type": "text"},
+        {"id": "ID name", "name": [' ', "Name"], "type": "text"},
+        {"id": "Category", "name": [' ', "Category" ], "type": "text"},
+        {"id": "Description", "name": [' ', "Sub Category" ], "type": "text"},
+                    
+        {
+            "id": "Amount",
+            "name": [' ',"Total Amount", ],
+            "type": "numeric",
+            "format": FormatTemplate.money(0),
+        },
+        
+]
+
+percapita_columns = [
+    {
+        "id": "Population",
+        "name": [' ',"Population" ],
+        "type": "numeric",
+        "format":  Format(group=Group.yes),
+    },
+    {
+        "id": "Per Capita",
+        "name": [' ', "Per Capita"],
+        "type": "numeric",
+        "format": FormatTemplate.money(0),
+    },
+    {
+        "id": "sparkline_Per Capita",
+        "name": ["Per Capita", "2014-2017"],
+        "type": "text",
+       
+    },
+]
+
+perstudent_columns = [
+    {
+        "id": "Enrollment",
+        "name": [' ',"School Enrollment" ],
+        "type": "numeric",
+        "format": FormatTemplate.money(0),
+    },
+    {
+        "id": "Per Student",
+        "name": [' ', "Per Student"],
+        "type": "numeric",
+         "format":  Format(group=Group.yes),
+    },
+    {
+        "id": "sparkline_Per Student",
+        "name": ["Per Student", "2014-2017"],
+        "type": "text",
+     
+    },
+]
+
+city_datatable = html.Div(
+        [
+            dash_table.DataTable(
+                id="city_table",
+                columns = city_columns + percapita_columns,
+                merge_duplicate_headers=True,
+                data=init_city_df_exp.to_dict('records'),
+                # filter_action='native',
+                sort_action="native",
+                sort_mode="multi",
+                export_format="xlsx",
+                export_headers="display",
+              #  row_selectable ='multi', 
+               # row_deletable = True,
+                is_focused=False,
+                cell_selectable=False,
+                css=[{'selector':'.export','rule':'position:absolute;right:-1px;top:-30px'}],
+                page_size=50,
+                style_table={
+                    "overflowY": "scroll",
+                    "border": "thin lightgrey solid",
+                    "maxHeight": "550px",
+                },
+                style_header={"font-size": "16px"},
+                style_cell={
+                    "textAlign": "left",
+                    "font-family": "arial",
+                    "font-size": "14px",
+                },
+                style_cell_conditional=[
+                    {"if": {"column_id": c}, "textAlign": "right"}
+                    for c in ["Per Capita", "Amount", "Population", "Enrollment"]
+                ],
+                style_data_conditional=[                   
+                    {
+                        "if": {"column_id": c},
+                        "width": 100,
+                        "font-family": "Sparks-Bar-Extrawide",
+                        "padding-right": "15px",
+                        "padding-left": "15px",
+                    } for c in ['sparkline_Per Capita', 'sparkline_Per Student']
+                ],
+            )
+        ], className="mr-1"    
+    )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ########### buttons, dropdowns, check boxes, sliders  ########################
@@ -506,7 +668,7 @@ year_slider = html.Div(
             },
             value=int(START_YR),
             included=False,
-            className="mt-3  px-2 mb-5",
+            className="mt-3  px-4 mb-5",
         )
     ]
 )
@@ -546,7 +708,7 @@ category_dropdown = html.Div(
             id="category_dropdown",
             options=[{"label": "All Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in df_exp["Category"].unique()],
-            placeholder="Select a category",
+          #  placeholder="Select a category",
             value='Public Safety',
         ),
     ],
@@ -560,9 +722,9 @@ sub_category_dropdown = html.Div(
             id="subcategory_dropdown",
             options=[{"label": "All Sub Categories", "value": "all"}]
             + [{"label": c, "value": c} for c in init_state_subcats],
-            placeholder="Select a sub category",
+           # placeholder="Select a sub category",
             style={"font-size": "90%"},
-            value='Police protection',
+            value='Police Protection',
         ),
     ],
     className="px-2 mt-3",
@@ -578,20 +740,97 @@ state_local_dropdown = html.Div(
                 {"label": "State", "value": "State"},
                 {"label": "Local", "value": "Local"},
             ],
-            placeholder="Select State or Local",
+          #  placeholder="Select State or Local",
         ),
     ],
-    className="px-2 mt-3",
+    className="px-2 mt-3", style={"display": "none"}
 )
 
 
 clear_button = html.Div(
     [
-        dbc.Button('Clear all Filters', id='clear',
-                  n_clicks=0, color="light", className="mt-4 btn-sm")
+        dbc.Button('Clear all selections', id='clear',
+                  n_clicks=0, color="light", className="mt-1 btn-sm")
         
     ]
 )
+
+
+#############   Local only buttons  
+
+type_dropdown = html.Div(
+    [
+        html.Div("Select city, county gov, school district...", style={"font-weight": "bold"}),
+        dcc.Dropdown(
+            id="city_type",
+            options=[
+                {"label": "All local government types", "value": "all"},
+                {"label": "County gov", "value": "1"},
+                {"label": "City", "value": "2"},
+                {"label": "School District", "value": "5"},
+                {"label": "Special District", "value": "4"},
+            ],
+            value="2",
+                      
+        ),
+    ],
+    className="px-2 mt-3",
+)
+
+county_dropdown = html.Div(
+    [
+        html.Div("Select a County:", style={"font-weight": "bold"}),
+        dcc.Dropdown(
+            id="city_county_dropdown",
+            options=[{"label": "All Counties", "value": "all"}]
+            + [{"label": c, "value": c} for c in init_city_df_exp["County name"].dropna().unique()],
+           # placeholder="Select a county",
+           
+        ),
+    ],
+    className="px-2",
+)
+
+city_dropdown = html.Div(
+    [
+        html.Div("Select a Name:", style={"font-weight": "bold"}),
+        dcc.Dropdown(
+            id="city_name_dropdown",
+            options=[{"label": "All ", "value": "all"}]
+            + [{"label": c, "value": c} for c in init_city_df_exp["ID name"]. dropna().unique()],
+          #  placeholder="Select a city",
+           
+        ),
+    ],
+    className="px-2",
+)
+
+
+
+
+#############   Tabs
+
+tabs = html.Div(
+    dbc.Tabs(
+        [
+            dbc.Tab(make_table(df_exp), tab_id ="state_table_tab",
+                    label="State Table", labelClassName=" bg-secondary text-white"),
+            dbc.Tab(html.Div(id='bar_charts_container'), tab_id ="state_bar_tab",
+                    label="State Bar charts", tab_style={"margin-left": "5px", }, labelClassName=" bg-secondary text-white"),  
+           # dbc.Tab(label= ".  ", labelClassName="bg-white",  disabled=True),
+            dbc.Tab(city_datatable, tab_id ="city_table_tab",
+                    label="Local Table", tab_style={"margin-left": "50px", }, labelClassName=" bg-secondary text-white"),
+            dbc.Tab(html.Div(id='city_bar_charts_container'), tab_id ="city_bar_tab",
+                    label="Local Bar charts", tab_style={"margin-left": "5px", },labelClassName=" bg-secondary text-white"),
+        ],
+        id="tabs",
+        active_tab="state_table_tab",
+                                        
+                                        
+    ),style={"height": "600px"},
+)
+
+
 
 
 #####################   Header Cards and Markdown #############################
@@ -656,29 +895,36 @@ layout = dbc.Container(
                         dbc.Col(  # controls
                             [
                                 html.Div(
-                                    [exp_rev_button_group]
+                                    [exp_rev_button_group]                                    
+                                    + [year_slider]
                                     + [state_dropdown]
-                                    + [year_slider],
-                                    className=" mb-5 border bg-white",
-                                    style={"height": "375px"},
-                                ),
-                                html.Div(
-                                    [category_dropdown]
+                                    + [category_dropdown]
                                     + [sub_category_dropdown]
-                                    + [state_local_dropdown],
-                                    className="mt-3  pt-2 border bg-white",
-                                    style={"height": "375px"},
-                                ),
+                                    + [state_local_dropdown],                                   
+                                    className=" mb-1 border bg-white",
+                                    style={"height": "500px"},
+                                ),   
+                                html.Div(
+                                          [county_dropdown]
+                                        + [type_dropdown]
+                                        + [city_dropdown],                                        
+                                        className="mt-1, pb-4 ml-1 bg-white border",
+                                        style={"display":"none"},
+                                        id='city_controls',
+
+                                    ),
                                 html.Div(
                                     clear_button,
-                                    className="mt=5 ml-1",
-                                        )
+                                    className="ml-1",
+                                )
                             ],
                             width={"size": 2, "order": 1},
-                            className="mt-5 ",
+                            className="mt-5 pt-4 ",
                         ),
                         dbc.Col(  # map and table stacked
-                            [map] + [make_table(df_exp)],
+                            [
+                               html.Div([map]+[tabs])
+                            ],
                             width={"size": 8, "order": 2},
                             className="bg-light mt-3 mb-3",
                         ),
@@ -686,8 +932,7 @@ layout = dbc.Container(
                             html.Div(
                                 [mystate_dropdown]
                                 + [mystate_sunburst]
-                                + [state_sunburst]
-                                + [usa_sunburst],                              
+                                + [state_sunburst],                                                            
                             ),
                             width={"size": 2, "order": "last"},
                             className="bg-primary",
@@ -699,28 +944,11 @@ layout = dbc.Container(
                 ),
             ]
         ),
-            ########################  bar charts #######################
-        html.Div(
-            [
-                dbc.Row(
-                    dbc.Col(html.H5(id="bar_title", className="bg-white text-center"),
-                             width={"size": 10, "offset": 2, "order": 2},
-                             ),
-                    className="bg-primary pt-5 pr-5"
-                    ),
-                 
-
-                dbc.Row(
-                    [
-                        dbc.Col(html.Div(id='bar_charts_container'),                            
-                                width={"size": 10, "offset": 2, "order": 2},
-                             
-                        )
-                    ], className="bg-primary pr-5 pb-5"                  
-                )                    
-            ], className="bg-white"
-        ),
-        ########################  large sunurst  ######################
+       
+          
+               
+              
+        ########################  large sunburst  ######################
         dbc.Row(
             [
                 dbc.Col(  # large sunburst
@@ -730,7 +958,7 @@ layout = dbc.Container(
                            
                 )
             ],
-                className="bg-white m-1",
+                className="bg-white mt-5",
         ),
         ###########################   footer #########################
         html.Div(  # footer
@@ -756,6 +984,7 @@ layout = dbc.Container(
         Output("category_dropdown", "options"),
         Output("category_dropdown", "value"),
         Output("state_local_dropdown", "value"),
+        Output('city_name_dropdown', "value"),
     ],
     [
         Input("expenditures", "n_clicks"), 
@@ -769,7 +998,7 @@ def update_exp_or_rev(exp, rev, clear_click):
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     if clear_click and (input_id == 'clear'):
-        return dash.no_update, dash.no_update, None, None
+        return dash.no_update, dash.no_update, None, None, None
 
     dff = df_rev if input_id == "revenue" else df_exp
 
@@ -777,28 +1006,38 @@ def update_exp_or_rev(exp, rev, clear_click):
         {"label": c, "value": c} for c in dff["Category"].unique()
     ]
 
-    return "Revenue" if input_id == "revenue" else "Expenditures", options, None, None
+    return "Revenue" if input_id == "revenue" else "Expenditures", options, None, None, None
 
 
-#####  update state dropdown with map click
+#####  update state dropdown 
 @app.callback(Output("state", "value"),               
         [
             Input("map", "clickData"),
-            Input('clear', "n_clicks")
+            Input('clear', "n_clicks"),
+            Input("tabs", "active_tab")
+        ],
+        [   State("state", "value")
         ]
+
 )
-def update_state_dropdown(clickData, clear_click):
+def update_state_dropdown(clickData, clear_click, at, state):
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
+    
     if input_id == 'clear':
-        return 'USA'
+        state = 'USA' if at in ['state_table_tab', 'state_bar_tab'] else 'Alabama'
+    if (input_id == 'tabs') and (state == 'USA') and (at in ['city_table_tab', 'city_bar_tab']):
+        state= 'Alabama'
+            
+    if input_id == 'map':
+        if clickData is None:
+            raise PreventUpdate
+        else:
+            click_state = clickData["points"][0]["location"]
+            state = du.abbr_state[click_state]
 
-    if clickData is None:
-        raise PreventUpdate
-    else:
-        click_state = clickData["points"][0]["location"]
-        return du.abbr_state[click_state]
+    return state
 
 
 ##### updates sub category dropdown
@@ -828,24 +1067,59 @@ def update_sub_category_dropdown(cat, exp_or_rev, clear_click):
     return options, None
 
 
+#######  Local only updates:
+
+####### Update counties when state changes
+@app.callback(
+    [
+        Output('city_county_dropdown', "options"),
+    ],
+    [Input('state', 'value')]    
+)
+def update_counties(state):    
+    #TODO fix this - force state selection or warning msg
+    if state == 'USA': 
+        state='Alabama'
+    options = [{"label": "All Counties", "value": "all"}] + [
+        {"label": c, "value": c} for c in exp[du.state_abbr[state]]["County name"].dropna().unique()
+    ]
+    
+    return [options]
+
+
+
+####### Update city names when county and type changes
+@app.callback(
+    Output('city_name_dropdown', "options"),
+    [
+        Input('state', 'value'),
+        Input('city_county_dropdown', 'value'),
+        Input('city_type', 'value'),   
+        
+     ],    
+)
+def update_counties(state, county, type, ):
+
+
+    # TODO fix this - do erro message to select a state default for now
+    if state== 'USA': state = 'Alabama'
+
+    dff=exp[du.state_abbr[state]].copy()   
+    
+    print(type)
+    if type and (type != 'all'):
+        dff= dff[dff['Gov Type'].str.contains(type, na=False)]
+    if county and (county != 'all'):
+        dff= dff[dff['County name'] == county]
+
+    return [{"label": "All Cities", "value": "all"}] + [
+        {"label": c, "value": c} for c in dff["ID name"].dropna().unique()
+    ]
+
+
+
 #######  Update Sunburst Figures  #############################################
 
-
-######## updates USA overview sunburst and stats
-@app.callback(
-    [Output("sunburst_usa", "figure"), Output("usa_stats", "children")],
-    [Input("year", "value"), Input("store_exp_or_rev", "data")],
-    prevent_initial_call=True,
-)
-def update_usa(year, exp_or_rev):
-    year = str(year)
-    dff = df_exp if exp_or_rev == "Expenditures" else df_rev
-
-    figure = make_sunburst(
-        dff, ["USA", "Category"], get_col("Amount", year), year + " USA"
-    )
-    stats = make_stats_table(df_pop[int(year)].astype(float).sum(), dff, 51, year)
-    return figure, stats
 
 
 #### updates State overview sunburst and stats.
@@ -863,15 +1137,19 @@ def update_selected_state(selected_state, year, exp_or_rev):
     dff = df_exp if exp_or_rev == "Expenditures" else df_rev
 
     if selected_state == "USA":
-        selected_state = "Alabama"  # default
-
-    selected = 1  # TODO allow for multiple selected states
-    dff = dff[dff["State"] == selected_state]
-    population = int(df_pop.loc[df_pop["State"] == selected_state, int(year)])
-    title = year + " Selected State"
+        path = ["USA", "Category"]
+        population = df_pop[int(year)].astype(float).sum()
+        title= year + " USA"      
+        selected = 51  # TODO allow for multiple selected states
+    else:        
+        dff = dff[dff["State"] == selected_state]
+        path = ["State", "Category"]
+        population = int(df_pop.loc[df_pop["State"] == selected_state, int(year)])
+        title = year + " Selected State"
+        selected = 1
 
     return (
-        make_sunburst(dff, ["State", "Category"], get_col("Amount", year), title),
+        make_sunburst(dff, path, get_col("Amount", year), title),
         make_stats_table(population, dff, selected, year),
     )
 
@@ -900,20 +1178,21 @@ def update_mystate(mystate, year, exp_or_rev):
         make_stats_table(population, dff, selected, year),
     )
 
-#@app.callback(
-#   Output('table', "style_data_conditional"),
-#   [ Input("table", "active_cell")]
-#)
-#def update_row_color(active):
-#    style= style_data_conditional.copy()
-#    if active:        
-#        style.append(
-#                {   "if": {"row_index": active['row']}, 
-#                    'backgroundColor': 'rgba(150, 180, 225, 0.2)',
-#                    'border': '1px solid blue'
-#                },            
-#        )
-#        return style
+######  Switch Tabs, hide/show local controls  updateyear#######################
+@app.callback(
+    [Output("city_controls", "style"), 
+     Output("year", "min")
+     ],            
+    [Input("tabs", "active_tab")]
+)
+def switch_tab(at):
+    # note - switching tabs also updates state in diff callback
+    if at in ["state_table_tab", "state_bar_tab"]:
+        return  {"display":"none"}, int(min(YEARS))
+    else:
+
+        return {"display":"block"}, int(min(CITY_YEARS))
+    
 
 
 #######  update map and table  ##################################################\
@@ -923,7 +1202,7 @@ def update_mystate(mystate, year, exp_or_rev):
         Output("table", "data"),
         Output("sunburst_cat", "figure"),
         Output("bar_charts_container", "children"),
-        Output("bar_title", "children"),
+        
        
     ],
     [
@@ -943,10 +1222,9 @@ def update_map(__, year, state, cat, subcat, local, viewport, exp_or_rev, ):
 
     dff_map = df_rev if exp_or_rev == "Revenue" else df_exp
     dff_table = dff_sunburst = dff_map.copy()
-    update_title = " ".join([str(year), exp_or_rev, "Per Capita by State"])
-    sunburst_title = " ".join([str(year), exp_or_rev, "Per Capita All States"])
-
-   
+    map_title = " ".join([str(year), exp_or_rev, "Per Capita by State"])
+    sunburst_title = " ".join(["All States ", str(year), exp_or_rev, "Per Capita "])  
+    bar_title = " ".join([str(year), exp_or_rev, " -- By State" ])  
     
    
 
@@ -963,17 +1241,20 @@ def update_map(__, year, state, cat, subcat, local, viewport, exp_or_rev, ):
     if cat and (cat != "all"):
         dff_table = dff_table[dff_table["Category"] == cat]
         dff_map = dff_map[dff_map["Category"] == cat]
-        update_title = " ".join([str(year), exp_or_rev, cat])
+        map_title = " ".join([str(year), exp_or_rev, " Per Capita: ", cat])
+        bar_title = " ".join([ str(year), exp_or_rev, cat, " -- By State"])  
 
     if subcat and (subcat != "all"):
         dff_table = dff_table[dff_table["Description"] == subcat]
         dff_map = dff_map[dff_map["Description"] == subcat]
-        update_title = " ".join([str(year), exp_or_rev, subcat])
+        map_title = " ".join([str(year), exp_or_rev, " Per Capita: ", subcat])
+        bar_title = " ".join([str(year), exp_or_rev, subcat, " -- By State"])  
 
     if local and (local != "all"):
         dff_table = dff_table[dff_table["State/Local"] == local]
         dff_map = dff_map[dff_map["State/Local"] == local]
-        update_title = " ".join([update_title, "and", local, "gvmt only"])
+        map_title = " ".join([map_title, "and", local, "gvmt only"])
+        bar_title = " ".join([str(year), exp_or_rev, "and", local, "gvmt only"])
 
     # subtotal
     if local:
@@ -1007,13 +1288,121 @@ def update_map(__, year, state, cat, subcat, local, viewport, exp_or_rev, ):
 
        
     return (
-        make_choropleth(dff_map, update_title, state, str(year)),
+        make_choropleth(dff_map, map_title, state, str(year)),
         dff_table.to_dict("records"),
         figure,
-        make_bar_charts(pd.DataFrame(viewport)),
-        update_title
+        make_bar_charts(pd.DataFrame(viewport), 'State', bar_title)        
     )
+
+
+
+#####################################   UPDATE LOCAL  #####################################
+
+
+#####  Update city table
+@app.callback(
+    [
+        Output("city_table", "data"), 
+        Output("city_table", "columns"),    
+        Output("city_bar_charts_container", "children"),
+     ],
+    [
+        Input("store_exp_or_rev", "data"),       
+        Input("year", "value"),
+        Input("category_dropdown", "value"),
+        Input("subcategory_dropdown", "value"),        
+        Input("state", "value"),
+        Input("city_type", "value"),
+        Input("city_county_dropdown", "value"),  
+        Input("city_name_dropdown", "value"),  
+        Input("city_table", 'derived_viewport_row_ids')
+    ],
+    # prevent_initial_call=True,
+   
+)
+def update_city_table(
+    exp_or_rev, year, cat, subcat, state, type, county, name, viewport
+):
+   
+    ctx = dash.callback_context
+    input_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    #TODO - make error message and remind to select a state and min year is 2014
+    if state== 'USA':
+        state = 'Alabama'
+    if year < 2014:
+        year = 2014
+
+    update_title = " ".join([str(year), state, exp_or_rev])
+   
+          
+    df_table = rev[du.state_abbr[state]] if exp_or_rev == "Revenue" else exp[du.state_abbr[state]]
+
+    # filter  table
+    if type and (type != 'all'):
+        df_table = df_table[df_table["Gov Type"].str.contains(type, na=False)].copy()
+    if cat and (cat != "all"):
+        df_table = df_table[df_table["Category"] == cat]
+        update_title = " ".join([str(year), state, exp_or_rev, ": ", cat])
+    if subcat and (subcat != "all"):
+        df_table = df_table[df_table["Description"] == subcat]
+        update_title = " ".join([str(year), state, exp_or_rev, ": ", subcat])
+    if county and (county != 'all'):
+        df_table = df_table[df_table["County name"] == county]
+        update_title = " ".join([update_title, county, ' county'])
+    if name and (name != 'all'):
+        df_table = df_table[df_table["ID name"] == name]
+
+ 
+    # subtotal table
+    main_columns = ["ST", "id", "County name", "ID name", "Gov Type"]
+    if subcat:
+        df_table = (
+            df_table.groupby(main_columns + ["Category", "Description"])
+            .sum()
+            .reset_index()
+        )
+    elif cat:
+        df_table = df_table.groupby(main_columns + ["Category"]).sum().reset_index()
+    else:
+        df_table = df_table.groupby(main_columns).sum().reset_index()
+
+   
+    # remove empty cols
+    df_table = df_table.loc[:, (df_table != 0).any(axis=0)]
+
+    if df_table.empty:
+        return [], [], []
+
+    # school district columns
+    if (df_table["Gov Type"] == "5").all():
+        columns = city_columns + perstudent_columns
+        df_table["sparkline_Per Student"] = make_sparkline(
+            df_table, "Per Student", YEARS
+        )
+        df_table = year_filter(df_table, str(year))
+        df_table["Enrollment"] = df_table["Amount"] / df_table["Per Student"]
+
+    # special districts columns
+    elif (df_table["Gov Type"] == "4").all():
+        columns = city_columns
+        df_table = year_filter(df_table, str(year))
+    else:
+        # city columns
+        columns = city_columns + percapita_columns       
+        df_table["sparkline_Per Capita"] = make_sparkline(df_table, "Per Capita", YEARS)       
+        df_table = year_filter(df_table, str(year))
+        df_table["Population"] = df_table["Amount"] / df_table["Per Capita"]
+
+    
+    dff= df_table[df_table['id'].isin(viewport)]   
+    bar_charts = [] if dff.empty else make_bar_charts(dff, 'ID name',update_title)
+    
+   
+    return df_table.to_dict('records'), columns, bar_charts
+
 
 
 if __name__ == "__main__":
     app.run_server(debug=True)
+
