@@ -150,11 +150,11 @@ code_abbr = dict(zip(list(code_state), list(abbr_state)))
 # this is position 3 of the ID code
 code_type = {								
     '0'	: 'State',								
-    '1'	: 'County',								
-    '2'	: 'City',								
-    '3'	: 'Township',								
-    '4'	: 'Special District',								
-    '5'	: 'School District'	
+    '1'	: 'Counties',								
+    '2'	: 'Cities',								
+    '3'	: 'Townships',								
+    '4'	: 'Special Districts',								
+    '5'	: 'School Districts'	
 }
 
 type_code = dict(map(reversed, code_type.items()))

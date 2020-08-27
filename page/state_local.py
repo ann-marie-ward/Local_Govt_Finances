@@ -254,13 +254,11 @@ def make_choropleth(dff, title, state, year):
 
 
 ########### Bar chart
-def make_bar_charts(dff, yaxis_col, xaxis_col, df_colors="#446e9b"):
+def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no"):
 
-    color = (
-        df_colors
-        if type(df_colors) is str
-        else df_colors["".join([yaxis_col, "_color"])]
-    )
+    color_column = yaxis_col + "_color"
+    color = dff[color_column] if color_column in dff else default_color
+    range = [] if clip == "no" else [0, clip]
 
     return [
         dcc.Graph(
@@ -281,9 +279,10 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, df_colors="#446e9b"):
                     "yaxis": {
                         "automargin": True,
                         "title": {"text": yaxis_col},
+                        "range": range,
                         "fixedrange": True,
                     },
-                    "height": 400,
+                    "height": 375,
                     "margin": {"t": 10, "l": 10, "r": 10, "b": 200},
                 },
             },
@@ -301,8 +300,7 @@ def make_stats_table(population, dff_exp, selected, year):
     row1 = html.Tr(
         [
             html.Td(
-                "{:0,.0f} {}".format(population, "Population"),
-                style={"text-align": "center"},
+                "{:0,.0f} {}".format(population, "Population"), className="text-center"
             ),
         ]
     )
@@ -310,7 +308,7 @@ def make_stats_table(population, dff_exp, selected, year):
         [
             html.Td(
                 "${:0,.0f} {}".format(per_capita, "Per Capita All Categories"),
-                style={"text-align": "center"},
+                className="text-center",
             ),
         ]
     )
@@ -471,14 +469,14 @@ def discrete_background_color_bins(df, n_bins=5, columns="all"):
         df_numeric_columns = df[columns]
 
     # removes outliers
-    df_numeric_columns = df_numeric_columns[
-        np.abs(df_numeric_columns - df_numeric_columns.mean())
-        <= (3 * df_numeric_columns.std())
-    ]
+    x = df_numeric_columns.copy()
+    x = x[x < x.quantile(0.99)]
 
-    df_max = df_numeric_columns.max().max()
-    df_min = df_numeric_columns.min().min()
+    df_max = x.max().max()
+    df_min = x.min().min()
+
     ranges = [((df_max - df_min) * i) + df_min for i in bounds]
+
     styles = []
     legend = []
     colors = []
@@ -525,14 +523,19 @@ def discrete_background_color_bins(df, n_bins=5, columns="all"):
         )
 
     for column in df_numeric_columns:
-        df_numeric_columns[column + "_color"] = pd.cut(
-            df_numeric_columns[column], bins=ranges, labels=colors
-        )
+        try:
+            dff = df_numeric_columns[column].copy()
+            df_numeric_columns.loc[:, column + "_color"] = pd.cut(
+                dff, bins=ranges, labels=colors, duplicates="drop"
+            )
+        except:
+            return [], [], pd.DataFrame(), 0
 
     return (
         styles,
         html.Div(legend, style={"padding": "5px 0 5px 0"}),
         df_numeric_columns.filter(like="_color"),
+        df_max,
     )
 
 
@@ -610,7 +613,7 @@ def make_table(dff):
                 ],
             )
         ],
-        className="mb-2",
+        #  className="mb-2",
     )
 
 
@@ -636,16 +639,16 @@ city_columns = [
 
 percapita_columns = [
     {
-        "id": "Population",
-        "name": [" ", "Population"],
-        "type": "numeric",
-        "format": Format(group=Group.yes),
-    },
-    {
         "id": "Per Capita",
         "name": [" ", "Per Capita"],
         "type": "numeric",
         "format": FormatTemplate.money(0),
+    },
+    {
+        "id": "Population",
+        "name": [" ", "Population"],
+        "type": "numeric",
+        "format": Format(group=Group.yes),
     },
     {
         "id": "sparkline_Per Capita",
@@ -656,16 +659,16 @@ percapita_columns = [
 
 perstudent_columns = [
     {
-        "id": "Enrollment",
-        "name": [" ", "School Enrollment"],
-        "type": "numeric",
-        "format": Format(group=Group.yes),
-    },
-    {
         "id": "Per Student",
         "name": [" ", "Per Student"],
         "type": "numeric",
         "format": FormatTemplate.money(0),
+    },
+    {
+        "id": "Enrollment",
+        "name": [" ", "School Enrollment"],
+        "type": "numeric",
+        "format": Format(group=Group.yes),
     },
     {
         "id": "sparkline_Per Student",
@@ -723,7 +726,7 @@ city_datatable = html.Div(
             ],
         )
     ],
-    className="mb-2",
+    className="mb-5",
 )
 
 
@@ -755,10 +758,10 @@ all_states_button = html.Div(
             n_clicks=0,
             color="info",
             #  outline=True,
-            className="mt-1 btn-lg",
+            className="btn-lg",
         )
     ],
-    className="mt-5 mb-5",
+    #  className="mb-5",
 )
 
 
@@ -1047,7 +1050,7 @@ layout = dbc.Container(
                                         state_local_button_group,
                                     ],
                                     className=" mb-1 border bg-white",
-                                    style={"height": "500px"},
+                                    style={"height": "525px"},
                                 ),
                                 html.Div(
                                     [county_dropdown, type_dropdown, city_dropdown,],
@@ -1109,6 +1112,7 @@ layout = dbc.Container(
         Output("category_dropdown", "value"),
         Output("state_local_dropdown", "value"),
         Output("city_name_dropdown", "value"),
+        Output("city_county_dropdown", "value"),
         Output("city_type", "value"),
     ],
     [
@@ -1124,7 +1128,7 @@ def update_exp_or_rev(exp, rev, clear_click):
 
     # better ui for local if it defaults to city (type 3)?
     if clear_click and (input_id == "clear"):
-        return dash.no_update, dash.no_update, None, None, None, "2"
+        return dash.no_update, dash.no_update, None, None, None, None, "2"
 
     dff = df_rev if input_id == "revenue" else df_exp
 
@@ -1135,6 +1139,7 @@ def update_exp_or_rev(exp, rev, clear_click):
     return (
         "Revenue" if input_id == "revenue" else "Expenditures",
         options,
+        None,
         None,
         None,
         None,
@@ -1460,7 +1465,7 @@ def update_map(
     # prevent_initial_call=True,
 )
 def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
-    print(state)
+
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
@@ -1469,7 +1474,7 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
     if year < 2014:
         year = 2014
 
-    title = " ".join([str(year), state, "Local Govts", exp_or_rev])
+    title = " ".join([str(year), state, exp_or_rev])
     update_title = title
 
     df_table = (
@@ -1481,15 +1486,16 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
     # filter  table
     if type and (type != "all"):
         df_table = df_table[df_table["Gov Type"].str.contains(type, na=False)].copy()
+        update_title = " ".join([title, " --> ", du.code_type[type]])
     if cat and (cat != "all"):
         df_table = df_table[df_table["Category"] == cat]
-        update_title = " ".join([title, ": ", cat])
+        title = " ".join([update_title, "-->", cat])
     if subcat and (subcat != "all"):
         df_table = df_table[df_table["Description"] == subcat]
-        update_title = " ".join([title, ": ", subcat])
+        title = " ".join([title, "-->", subcat])
     if county and (county != "all"):
         df_table = df_table[df_table["County name"] == county]
-        update_title = " ".join([update_title, county, " county"])
+        update_title = " ".join([title, county, " county"])
     if name and (name != "all"):
         df_table = df_table[df_table["ID name"] == name]
 
@@ -1547,12 +1553,14 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
         Output("city_bar_charts_container", "children"),
         Output("city_legend", "children"),
     ],
-    [Input("city_table", "derived_viewport_data"),],
+    [
+        Input("city_table", "derived_virtual_data"),
+        Input("city_table", "derived_viewport_row_ids"),
+    ],
 )
-def update_city_table(viewport):
+def update_city_table(data, viewport_ids):
 
-    # which column to show bar chart and heatmap:
-    dff = pd.DataFrame(viewport)
+    dff = pd.DataFrame(data)
     if dff.empty:
         raise PreventUpdate
     else:
@@ -1563,7 +1571,9 @@ def update_city_table(viewport):
         else:
             col = "Amount"
 
-        (styles, legend, df_color) = discrete_background_color_bins(dff, columns=[col])
+        (styles, legend, df_color, max_y) = discrete_background_color_bins(
+            dff, columns=[col]
+        )
 
         styles = styles + [
             {
@@ -1577,7 +1587,12 @@ def update_city_table(viewport):
             for c in ["sparkline_Per Capita", "sparkline_Per Student"]
         ]
 
-        bar_charts = [] if dff.empty else make_bar_charts(dff, col, "ID name", df_color)
+        bar_charts = []
+        if not df_color.empty:
+            dff[col + "_color"] = df_color
+            dff = dff[dff["id"].isin(viewport_ids)]
+            bar_charts = make_bar_charts(dff, col, "ID name", clip=max_y)
+
         return styles, bar_charts, legend
 
 
