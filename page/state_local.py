@@ -259,6 +259,7 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
     color_column = yaxis_col + "_color"
     color = dff[color_column] if color_column in dff else default_color
     range = [] if clip == "no" else [0, clip]
+    print(dff.head(25))
 
     return [
         dcc.Graph(
@@ -1155,10 +1156,17 @@ def update_exp_or_rev(exp, rev, clear_click):
         Input("clear", "n_clicks"),
         Input("tabs", "active_tab"),
         Input("all_states", "n_clicks"),
+        Input("category_dropdown", "value"),
+        Input("subcategory_dropdown", "value"),
+        Input("city_county_dropdown", "value"),
+        Input("city_type", "value"),
+        Input("city_name_dropdown", "value"),
     ],
     [State("state", "value")],
 )
-def update_state_dropdown(clickData, clear_click, at, all_states, state):
+def update_state_dropdown(
+    clickData, clear_click, at, all_states, _, __, ___, _x, __x, state
+    ):
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
@@ -1429,6 +1437,13 @@ def update_map(
         get_col("Amount", str(year)),
         sunburst_title,
     )
+
+    bar_charts = []
+    if (len(dff_table['State'].unique()) > 1):
+         bar_charts = make_bar_charts(pd.DataFrame(viewport), "Per Capita", "State")
+
+
+
     if dff_map.empty:
         return [], [], [], [], all_state_btn
 
@@ -1436,7 +1451,7 @@ def update_map(
         make_choropleth(dff_map, map_title, state, str(year)),
         dff_table.to_dict("records"),
         figure,
-        make_bar_charts(pd.DataFrame(viewport), "Per Capita", "State"),
+        bar_charts,
         all_state_btn,
     )
 
@@ -1588,10 +1603,11 @@ def update_city_table(data, viewport_ids):
         ]
 
         bar_charts = []
-        if not df_color.empty:
+        if (not df_color.empty) and (len(dff['id'].unique()) > 1):
             dff[col + "_color"] = df_color
             dff = dff[dff["id"].isin(viewport_ids)]
             bar_charts = make_bar_charts(dff, col, "ID name", clip=max_y)
+           
 
         return styles, bar_charts, legend
 
