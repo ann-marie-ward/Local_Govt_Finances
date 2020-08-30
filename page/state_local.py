@@ -271,7 +271,8 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
                         "x": dff[xaxis_col],
                         "y": dff[yaxis_col],
                         "type": "bar",
-                        "hovertemplate": " $%{y:,.0f}<extra></extra>",
+                      #  "hovertemplate": " $%{y:,.0f}<extra></extra>",
+                         "hovertemplate": " $%{y:,.0f}",
                         "marker": {"color": color},
                     }
                 ],
@@ -279,10 +280,13 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
                     "xaxis": {"automargin": True, "tickangle": -40, "fixedrange": True},
                     "yaxis": {
                         "automargin": True,
+                       
                         "title": {"text": yaxis_col},
                         "range": range,
                         "fixedrange": True,
                     },
+                     'barmode' : 'relative',
+                     'hovermode': 'closest',
                     "height": 375,
                     "margin": {"t": 10, "l": 10, "r": 10, "b": 200},
                 },
@@ -591,7 +595,7 @@ def make_table(dff):
                 style_table={
                     "overflowY": "scroll",
                     "border": "thin lightgrey solid",
-                    "height": "425px",
+                    "maxHeight": "425px",
                 },
                 style_cell={
                     "textAlign": "left",
@@ -735,7 +739,7 @@ city_datatable = html.Div(
 
 exp_rev_button_group = dbc.ButtonGroup(
     [
-        dbc.Button("Expenditures", id="expenditures"),
+        dbc.Button("Spending", id="expenditures"),
         dbc.Button("Revenue", id="revenue", className="mt-1"),
     ],
     vertical=True,
@@ -1262,7 +1266,8 @@ def update_counties(
     dff = exp[du.state_abbr[state]].copy()
 
     if type and (type != "all"):
-        dff = dff[dff["Gov Type"].str.contains(type, na=False)]
+        if type == '2':           
+            dff = dff[dff["Gov Type"].str.contains('2', na=False) | dff["Gov Type"].str.contains('3', na=False)]
     if county and (county != "all"):
         dff = dff[dff["County name"] == county]
 
@@ -1500,7 +1505,9 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
 
     # filter  table
     if type and (type != "all"):
-        df_table = df_table[df_table["Gov Type"].str.contains(type, na=False)].copy()
+        if type == '2':           
+            df_table = df_table[df_table["Gov Type"].str.contains('2', na=False) | df_table["Gov Type"].str.contains('3', na=False)].copy()
+       
         update_title = " ".join([title, " --> ", du.code_type[type]])
     if cat and (cat != "all"):
         df_table = df_table[df_table["Category"] == cat]
