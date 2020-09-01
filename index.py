@@ -16,7 +16,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from app import app
-from page import  state_local
+from page import  state_local, historic
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -32,7 +32,9 @@ def display_page(pathname):
     elif pathname == '/page/state':
         return state_local.layout
     elif pathname == '/page/about':
-        return state_local.layout
+        return historic.layout
+    elif pathname == '/page/wealth':
+        return historic.layout
     else:
         return state_local.layout
 

@@ -4,6 +4,17 @@
   
 }
 
+
+.input-group-text {   
+    width: 150px !important;
+    
+}
+
+
+
+
+
+
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner input:not([type=radio]):not([type=checkbox]){
     color: red!important;
 }
