@@ -32,22 +32,20 @@ df = (
 
 def highlights():
     """ creates data to highlight certain time periods """
-    selected_yr = ["2007", "2000", "1970", "1929", "1928"]
-
-    descr = [
+    years = ["2007", "2000", "1970", "1929", "1928"]
+    planning_time = [13, 10, 10, 20, 93]
+    time_period_names = [
         "2007-2008 Great Financial Crisis",
         "2000 Dotcom Bubble peak",
         "1970s Energy Crisis",
         "1929 start of Great Depression",
         "1928-2019",
     ]
-
-    start_yr = [2007, 2000, 1970, 1929, 1928]
-    planning_time = [13, 10, 10, 20, 93]
-    options = [dict(label=l, value=v) for l, v in zip(descr, selected_yr)]
+    
+    options = [{"label": time_period, "value" :yr} for time_period, yr in zip(time_period_names,  years)]
     timeframe = {
-        yr: {"start_yr": start, "planning_time": time}
-        for yr, start, time in zip(selected_yr, start_yr, planning_time)
+        yr: {"start_yr": int(yr), "planning_time": time}
+        for yr, time in zip(years, planning_time)
     }
     return options, timeframe
 
@@ -136,8 +134,8 @@ def update_cagr(dff, planning_time, start_bal):
         ["All_Cash", "All_Bonds", "All_Stocks", "Total", "Inflation_only"],
     ]
 
-    cagr = ((end / start_bal) ** (1 / planning_time)) - 1
-    cagr = cagr.fillna(0)
+    cagr = (((end / start_bal) ** (1 / planning_time)) - 1).fillna(0)
+  
     # format cagr
     cagr = [
         "{:.1%}".format(cagr[asset])
@@ -193,6 +191,8 @@ pie_chart = html.Div(
     style={"height": "375px"},
 )
 
+#########  Line chart
+
 
 def make_returns_chart(dff, start_bal):
     start = dff.loc[1, "Year"]
@@ -200,37 +200,33 @@ def make_returns_chart(dff, start_bal):
     yrs = dff["Year"].size - 1
     title = f"Returns for {yrs} years starting {start}"
     dtick = 1 if yrs < 16 else 2 if yrs in range(16, 30) else 5
-    figure = dict(
-        data=[
-            dict(x=x, y=dff["All_Cash"], name="All Cash", marker=dict(color="#3cb521")),
-            dict(
-                x=x,
+
+
+    fig = go.Figure()    
+    fig.add_trace(go.Scatter(x=x, y=dff["All_Cash"], name="All Cash", marker=dict(color="#3cb521")))
+    fig.add_trace(go.Scatter( x=x,
                 y=dff["All_Bonds"],
                 name="All Bonds (10yr T.Bonds)",
                 marker=dict(color="#d47500"),
-            ),
-            dict(
-                x=x,
+            ))
+    fig.add_trace(go.Scatter(x=x,
                 y=dff["All_Stocks"],
                 name="All Stocks (S&P500)",
                 marker=dict(color="#3399f3"),
-            ),
-            dict(
-                x=x,
+            ))
+    fig.add_trace(go.Scatter(x=x,
                 y=dff["Total"],
                 name="My Portfolio",
                 marker=dict(color="black"),
                 line=dict(width=6, dash="dot"),
-            ),
-            dict(
-                x=x,
+            ))
+    fig.add_trace(go.Scatter( x=x,
                 y=dff["Inflation_only"],
                 name="Inflation",
                 visible=True,
                 marker=dict(color="cd0200"),
-            ),
-        ],
-        layout=dict(
+            ))
+    fig.update_layout(
             title=title,
             showlegend=True,
             legend=dict(x=0.01, y=0.99),
@@ -238,9 +234,8 @@ def make_returns_chart(dff, start_bal):
             margin=dict(l=40, r=10, t=60, b=30),
             yaxis=dict(tickprefix="$", fixedrange=True),
             xaxis=dict(title="Year Ended", fixedrange=True, dtick=dtick),
-        ),
-    )
-    return figure
+        )
+    return fig
 
 
 #####################  Tables   #####################################
@@ -300,7 +295,7 @@ annual_returns_pct_table = html.Div(
 )
 
 
-#################  Make table for best and worst periods
+########## Make table for best and worst periods
 
 table_header = [
     html.Thead(
@@ -410,9 +405,10 @@ slider_card = html.Div(
                     persistence_type="session",
                 ),
                 html.H4(
-                    "Then set stock allocation % (The rest will be bonds)",
-                    className="card-title mt-5",
+                    "Then set stock allocation % ",
+                    className="card-title mt-3",
                 ),
+                html.Div("(The rest will be bonds)", className='card-title'),
                 dcc.Slider(
                     id="stock_bond3",
                     marks={i: "{}%".format(i) for i in range(0, 91, 10)},
@@ -496,7 +492,7 @@ amount_input_card = html.Div(
             ),
             dbc.InputGroup(
                 [
-                    dbc.InputGroupAddon("Start Year    :", addon_type="prepend"),
+                    dbc.InputGroupAddon("Start Year:", addon_type="prepend"),
                     dbc.Input(
                         id="start_yr3",
                         placeholder=f"{MIN_YR} to {MAX_YR}",
@@ -512,7 +508,7 @@ amount_input_card = html.Div(
             ),
             dbc.InputGroup(
                 [
-                    dbc.InputGroupAddon("Results!      : ", addon_type="prepend"),
+                    dbc.InputGroupAddon("Results: ", addon_type="prepend"),
                     dbc.Input(id="results3", type="text", disabled=True,),
                 ],
                 className="mb-3",
@@ -605,7 +601,7 @@ layout = dbc.Container(
         navbar3,
         dbc.Row(
             dbc.Col(
-                html.H3(
+                html.H4(
                     "Asset Allocation Visualizer",
                     className="text-center bg-light m-2 p-2",
                 ),
@@ -673,6 +669,7 @@ def update_stock_slider(cash, initial_stock_value):
 def update_pie(stocks, cash):
     bonds = 100 - stocks - cash
     slider_input = [cash, bonds, stocks]
+   
     if stocks >= 70:
         style = "Aggressive"
     elif stocks <= 30:
@@ -749,9 +746,10 @@ def update_totals(stocks, cash, start_bal, planning_time, start_yr, inflation):
 
     # create the line chart
     figure = make_returns_chart(dff, start_bal)
-    figure["data"][4]["visible"] = False
+
+    figure.update_traces(visible=False, selector=dict(name="Inflation"))
     if inflation:
-        figure["data"][4]["visible"] = True
+        figure.update_traces(visible=True, selector=dict(name="Inflation"))
 
     # update cagr
     title_cagr = f"Annual returns (CAGR) from {start_yr} to {end_yr}"

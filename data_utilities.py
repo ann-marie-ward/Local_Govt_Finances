@@ -147,10 +147,12 @@ code_state = dict(map(reversed, state_code.items()))
 code_abbr = dict(zip(list(code_state), list(abbr_state)))
 
 
-# this is position 3 of the ID code
+# this is position 3 of the ID code Note- "c" is only in my app so that both
+#  cities and towns can be selected in the dropdown.  It is not in the data
 code_type = {								
     '0'	: 'State',								
-    '1'	: 'Counties',								
+    '1'	: 'Counties',	
+    'c' : 'Cities and Towns',
     '2'	: 'Cities',								
     '3'	: 'Townships',								
     '4'	: 'Special Districts',								

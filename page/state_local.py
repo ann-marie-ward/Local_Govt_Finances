@@ -259,7 +259,7 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
     color_column = yaxis_col + "_color"
     color = dff[color_column] if color_column in dff else default_color
     range = [] if clip == "no" else [0, clip]
-    print(dff.head(25))
+    
 
     return [
         dcc.Graph(
@@ -870,18 +870,20 @@ state_local_dropdown = html.Div(
 type_dropdown = html.Div(
     [
         html.Div(
-            "Select city, county gov, school district...", style={"font-weight": "bold"}
+            "Select a Type: ie city, county gov, school district...", style={"font-weight": "bold"}
         ),
         dcc.Dropdown(
             id="city_type",
             options=[
                 {"label": "All local government types", "value": "all"},
-                {"label": "County govt", "value": "1"},
-                {"label": "City govt", "value": "2"},
-                {"label": "School District", "value": "5"},
-                {"label": "Special District", "value": "4"},
+                {"label": "County Govts", "value": "1"},
+                {"label": "Cities and Towns", "value": "c"},
+                {"label": "Cities only", "value": "2"},
+                {"label": "Towns only", "value": "3"},
+                {"label": "School Districts", "value": "5"},
+                {"label": "Special Districts", "value": "4"},
             ],
-            value="2",
+            value="c",
         ),
     ],
     className="px-2 mt-3",
@@ -897,6 +899,7 @@ county_dropdown = html.Div(
                 {"label": c, "value": c}
                 for c in init_city_df_exp["County name"].dropna().unique()
             ],
+             placeholder="Enter a name",
         ),
     ],
     className="px-2",
@@ -912,7 +915,7 @@ city_dropdown = html.Div(
                 {"label": c, "value": c}
                 for c in init_city_df_exp["ID name"].dropna().unique()
             ],
-            #  placeholder="Select a city",
+            placeholder="Enter a name",
         ),
     ],
     className="px-2",
@@ -987,22 +990,13 @@ tabs = html.Div(
 first_card = dbc.Card(
     dbc.CardBody(
         [
-            html.H5("Card title", className="card-title"),
-            html.P("This card will have content some day"),
-            #   dbc.Button("Go somewhere", color="primary"),
-        ]
+            html.H5("", className="card-title"),
+            html.P(""),
+           
+        ], style={'height': '75px'}
     )
 )
 
-second_card = dbc.Card(
-    dbc.CardBody(
-        [
-            html.H5("Card title", className="card-title"),
-            html.P("This card also has some text content and not much else,"),
-            dbc.Button("Go somewhere", color="primary"),
-        ]
-    )
-)
 
 
 intro = html.Div(
@@ -1010,10 +1004,14 @@ intro = html.Div(
         """
         This data is from the US Census. [link]  The most current
         data is from 2017, but it's a good starting place to learn
-        more about state and local government finances.  Here you can see
-        an overveiw of the broad spending categories and compare differences
-        between states.  Click on the category in the chart and see the map
-        for more details.                                 
+        more about state and local government finances.  
+        
+        Here you can see n overveiw of the broad spending categories and compare 
+        differences  between states.  
+        
+        Select the "Local Govts" button to see local governments such as city, county, 
+        school districts and special districts
+                                        
         """
     )
 )
@@ -1098,7 +1096,7 @@ layout = dbc.Container(
         ),
         ###########################   footer #########################
         html.Div(  # footer
-            [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5 small"))),]
+            [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5"))),]
         ),
     ],
     fluid=True,
@@ -1266,8 +1264,10 @@ def update_counties(
     dff = exp[du.state_abbr[state]].copy()
 
     if type and (type != "all"):
-        if type == '2':           
+        if type == 'c':           
             dff = dff[dff["Gov Type"].str.contains('2', na=False) | dff["Gov Type"].str.contains('3', na=False)]
+        else:
+            dff = dff[dff["Gov Type"].str.contains(type, na=False)]
     if county and (county != "all"):
         dff = dff[dff["County name"] == county]
 
@@ -1505,9 +1505,10 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
 
     # filter  table
     if type and (type != "all"):
-        if type == '2':           
+        if type == 'c':           
             df_table = df_table[df_table["Gov Type"].str.contains('2', na=False) | df_table["Gov Type"].str.contains('3', na=False)].copy()
-       
+        else:
+            df_table = df_table[df_table["Gov Type"].str.contains(type, na=False)]
         update_title = " ".join([title, " --> ", du.code_type[type]])
     if cat and (cat != "all"):
         df_table = df_table[df_table["Category"] == cat]

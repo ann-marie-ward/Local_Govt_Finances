@@ -58,10 +58,14 @@ footer = html.Div([
     dcc.Markdown( 
 
     '''
-Source: U.S. Census Bureau Annual Surveys of State and Local Government Finances. Data users who create their own estimates using data from this report 																																																																																																																																		
+***Source: U.S. Census Bureau Annual Surveys of State and Local Government Finances. ***
+
+Data users who create their own estimates using data from this report 																																																																																																																																		
 should cite the U.S. Census Bureau as the source of the original data only. The data in this table are based on information from public records and contain no confidential data. 																																																																																																																																		
 The state government data in this table are from a survey of all state governments and are not subject to sampling error.  The local government data in this table are from 																																																																																																																																		
-a sample of local governments, and as such, are subject to sampling variability.  Additional information on sampling and nonsampling error, response rates, and definitions																																																																																																																																		
+a sample of local governments, and as such, are subject to sampling variability. 
+
+Additional information on sampling and nonsampling error, response rates, and definitions																																																																																																																																		
 may be found at:																																																																																																																																		
 http://www2.census.gov/govs/state/17_methodology.pdf		and	http://www2.census.gov/govs/local/2017_local_finance_methodology.pdf																																																																																																																															
 
@@ -77,35 +81,19 @@ http://www2.census.gov/govs/state/17_methodology.pdf		and	http://www2.census.gov
 ################################   Temp  to run wealthdashboard book app here  ###################
 
 
-navbar3 = html.Div([
-    dbc.Row(
-                [
-                    dbc.Col(
-                        html.H3('Wealth Management Dashboard', className ='text-white'),         
-                        width={"size": 3, "offset": 1},
-                        
-                    ),
-                    dbc.Col(
-                        html.H5(dcc.Link('Historic Returns', href="/page/historic", className ='text-white') ),       
-                        width={"size": 1,  "offset": 4},
-                    ),
-                    dbc.Col(
-                        html.H5(dcc.Link('Forecasted Returns', href="/page/forecast", className ='text-white')),   
-                      
-                        width={"size": 1 },
-                    ),
-                    dbc.Col(
-                        html.H5(dcc.Link('About', href="/page/about", className ='text-white')),       
-                        width={"size": 1 },
-                    )
-                ], 
-                no_gutters=True,                
-                className ='bg-primary p-3',
-                
-    ), 
-])
-
-
+navbar3 = dbc.NavbarSimple(
+    [
+        dbc.NavItem(dbc.NavLink('Historic Returns', href="/page/historic")),
+        dbc.NavItem(dbc.NavLink('Stock Quotes', href="/page/quotes")),
+        dbc.NavItem(dbc.NavLink('About', href="/page/about")),        
+    ],
+    brand="Wealth Management Dashboard",
+    brand_style={'font-size':'x-large'},
+    brand_href="#",
+    color="primary",
+    fluid=True,
+    dark=True,
+)
 
 
 footer3 = html.Div(
