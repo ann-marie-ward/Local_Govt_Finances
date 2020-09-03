@@ -41,8 +41,11 @@ def highlights():
         "1929 start of Great Depression",
         "1928-2019",
     ]
-    
-    options = [{"label": time_period, "value" :yr} for time_period, yr in zip(time_period_names,  years)]
+
+    options = [
+        {"label": time_period, "value": yr}
+        for time_period, yr in zip(time_period_names, years)
+    ]
     timeframe = {
         yr: {"start_yr": int(yr), "planning_time": time}
         for yr, time in zip(years, planning_time)
@@ -135,7 +138,7 @@ def update_cagr(dff, planning_time, start_bal):
     ]
 
     cagr = (((end / start_bal) ** (1 / planning_time)) - 1).fillna(0)
-  
+
     # format cagr
     cagr = [
         "{:.1%}".format(cagr[asset])
@@ -148,13 +151,14 @@ def update_worst(dff):
     """calculate worst returns for cash, bonds and stocks in selected period
             and format for display panel """
 
-    returns = ["3-mon T.Bill", "10yr T.Bond", "S&P 500"]
+    assets = ["3-mon T.Bill", "10yr T.Bond", "S&P 500"]
     worst = []
-    for returns in returns:
-        worst_yr_loss = min(dff[returns])
-        worst_loss = dff.loc[dff[returns] == worst_yr_loss]
+    for asset in assets:
+        worst_yr_loss = min(dff[asset])
+        worst_loss = dff.loc[dff[asset] == worst_yr_loss]
         worst_year = worst_loss.iloc[0, 0]
         worst.append("{}:  {:.1%}".format(worst_year, worst_yr_loss))
+        print(worst)
     return worst
 
 
@@ -171,10 +175,11 @@ def make_pie(slider_input, title):
             go.Pie(labels=["Cash", "Bonds", "Stocks"], values=slider_input, sort=False)
         ]
     )
-    fig.update_traces(textinfo="label+percent", marker=dict(colors=colors)),
+    fig.update_traces(textinfo="label+percent", textposition='inside', marker=dict(colors=colors)),
     fig.update_layout(
         title_text=title,
         title_x=0.5,
+
         margin=go.layout.Margin(b=25, t=75, l=35, r=25),
         height=375,
         paper_bgcolor="whitesmoke",
@@ -201,40 +206,56 @@ def make_returns_chart(dff, start_bal):
     title = f"Returns for {yrs} years starting {start}"
     dtick = 1 if yrs < 16 else 2 if yrs in range(16, 30) else 5
 
-
-    fig = go.Figure()    
-    fig.add_trace(go.Scatter(x=x, y=dff["All_Cash"], name="All Cash", marker=dict(color="#3cb521")))
-    fig.add_trace(go.Scatter( x=x,
-                y=dff["All_Bonds"],
-                name="All Bonds (10yr T.Bonds)",
-                marker=dict(color="#d47500"),
-            ))
-    fig.add_trace(go.Scatter(x=x,
-                y=dff["All_Stocks"],
-                name="All Stocks (S&P500)",
-                marker=dict(color="#3399f3"),
-            ))
-    fig.add_trace(go.Scatter(x=x,
-                y=dff["Total"],
-                name="My Portfolio",
-                marker=dict(color="black"),
-                line=dict(width=6, dash="dot"),
-            ))
-    fig.add_trace(go.Scatter( x=x,
-                y=dff["Inflation_only"],
-                name="Inflation",
-                visible=True,
-                marker=dict(color="cd0200"),
-            ))
-    fig.update_layout(
-            title=title,
-            showlegend=True,
-            legend=dict(x=0.01, y=0.99),
-            height=400,
-            margin=dict(l=40, r=10, t=60, b=30),
-            yaxis=dict(tickprefix="$", fixedrange=True),
-            xaxis=dict(title="Year Ended", fixedrange=True, dtick=dtick),
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=x, y=dff["All_Cash"], name="All Cash", marker=dict(color="#3cb521")
         )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=dff["All_Bonds"],
+            name="All Bonds (10yr T.Bonds)",
+            marker=dict(color="#d47500"),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=dff["All_Stocks"],
+            name="All Stocks (S&P500)",
+            marker=dict(color="#3399f3"),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=dff["Total"],
+            name="My Portfolio",
+            marker=dict(color="black"),
+            line=dict(width=6, dash="dot"),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=dff["Inflation_only"],
+            name="Inflation",
+            visible=True,
+            marker=dict(color="#cd0200"),
+        )
+    )
+    fig.update_layout(
+        title=title,
+        template = 'none',
+        showlegend=True,
+        legend=dict(x=0.01, y=0.99),
+        height=400,
+        margin=dict(l=40, r=10, t=60, b=30),
+        yaxis=dict(tickprefix="$", fixedrange=True),
+        xaxis=dict(title="Year Ended", fixedrange=True, dtick=dtick),
+    )
     return fig
 
 
@@ -404,11 +425,8 @@ slider_card = html.Div(
                     persistence=True,
                     persistence_type="session",
                 ),
-                html.H4(
-                    "Then set stock allocation % ",
-                    className="card-title mt-3",
-                ),
-                html.Div("(The rest will be bonds)", className='card-title'),
+                html.H4("Then set stock allocation % ", className="card-title mt-3",),
+                html.Div("(The rest will be bonds)", className="card-title"),
                 dcc.Slider(
                     id="stock_bond3",
                     marks={i: "{}%".format(i) for i in range(0, 91, 10)},
@@ -669,7 +687,7 @@ def update_stock_slider(cash, initial_stock_value):
 def update_pie(stocks, cash):
     bonds = 100 - stocks - cash
     slider_input = [cash, bonds, stocks]
-   
+
     if stocks >= 70:
         style = "Aggressive"
     elif stocks <= 30:
@@ -761,10 +779,11 @@ def update_totals(stocks, cash, start_bal, planning_time, start_yr, inflation):
     title_crash = f"Worst Year from {start_yr} to {end_yr}"
     worst_cash, worst_bonds, worst_stocks = update_worst(dff)
 
-    ending_balance = "${:0,.0f}".format(dff["Total"].iloc[-1])
-
+    results = "${:0,.0f}     {}".format(dff["Total"].iloc[-1], total_cagr)
+    
+    
     return (
-        data,
+        [data,
         figure,
         title_cagr,
         cash_cagr,
@@ -775,9 +794,9 @@ def update_totals(stocks, cash, start_bal, planning_time, start_yr, inflation):
         worst_cash,
         worst_bonds,
         worst_stocks,
-        ending_balance,
+        results]
     )
 
 
 if __name__ == "__main__":
-    app.run_server(debug=False)
+    app.run_server(debug=True)

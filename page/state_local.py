@@ -335,13 +335,34 @@ state_sunburst = html.Div(
                 df_exp,
                 ["USA", "Category"],
                 get_col("Amount", START_YR),
-                START_YR + " USA ",
+                START_YR + " Selected",
             ),
             style={"height": "200px"},
             config={"displayModeBar": False},
         ),
         html.Div(
             id="state_stats",
+            children=make_stats_table(
+                df_pop[int(START_YR)].astype(float).sum(), df_exp, 51, START_YR
+            ),
+        ),
+    ],
+)
+
+
+USA_sunburst = html.Div(
+    [
+        dcc.Graph(           
+            figure=make_sunburst(
+                df_exp,
+                ["USA", "Category"],
+                get_col("Amount", START_YR),
+                START_YR + " USA ",
+            ),
+            style={"height": "200px"},
+            config={"displayModeBar": False},
+        ),
+        html.Div(          
             children=make_stats_table(
                 df_pop[int(START_YR)].astype(float).sum(), df_exp, 51, START_YR
             ),
@@ -628,7 +649,7 @@ def make_table(dff):
 #############  Optional columns to show it the table
 
 city_columns = [
-    #   {"id": "id", "name": [' ', "id"], "type": "text"},
+    {"id": "id", "name": [' ', "id"], "type": "text"},
     {"id": "ST", "name": [" ", "State"], "type": "text"},
     {"id": "County name", "name": [" ", "County"], "type": "text"},
     {"id": "ID name", "name": [" ", "Name"], "type": "text"},
@@ -961,8 +982,8 @@ tabs = html.Div(
                     all_states_button,
                     html.Div(id="bar_charts_container"),
                 ],
-                tab_id="state_table_tab",
-                label="States",
+                 tab_id="state_table_tab",
+              #  label="States",
                 labelClassName="d-none",
             ),
             dbc.Tab(
@@ -974,8 +995,8 @@ tabs = html.Div(
                     html.Div(id="city_bar_charts_container"),
                 ],
                 tab_id="city_table_tab",
-                label="Local Governments",
-                tab_style={"margin-left": "10px",},
+              #  label="Local Governments",
+              #  tab_style={"margin-left": "10px",},
                 labelClassName="d-none",
             ),
         ],
@@ -1073,7 +1094,7 @@ layout = dbc.Container(
                         ),
                         dbc.Col(  # stacked sunbursts
                             html.Div(
-                                [mystate_dropdown, mystate_sunburst, state_sunburst],
+                                [mystate_dropdown, mystate_sunburst, state_sunburst, USA_sunburst],
                             ),
                             width={"size": 2, "order": "last"},
                             className="bg-primary",
@@ -1298,7 +1319,7 @@ def update_selected_state(selected_state, year, exp_or_rev):
     if selected_state == "USA":
         path = ["USA", "Category"]
         population = df_pop[int(year)].astype(float).sum()
-        title = year + " USA"
+        title = year + " Selected: USA"
         selected = 51  # TODO allow for multiple selected states
     else:
         dff = dff[dff["State"] == selected_state]

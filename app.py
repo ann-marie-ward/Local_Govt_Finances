@@ -58,7 +58,7 @@ footer = html.Div([
     dcc.Markdown( 
 
     '''
-***Source: U.S. Census Bureau Annual Surveys of State and Local Government Finances. ***
+***Data Source: U.S. Census Bureau Annual Surveys of State and Local Government Finances. ***
 
 Data users who create their own estimates using data from this report 																																																																																																																																		
 should cite the U.S. Census Bureau as the source of the original data only. The data in this table are based on information from public records and contain no confidential data. 																																																																																																																																		
@@ -69,6 +69,8 @@ Additional information on sampling and nonsampling error, response rates, and de
 may be found at:																																																																																																																																		
 http://www2.census.gov/govs/state/17_methodology.pdf		and	http://www2.census.gov/govs/local/2017_local_finance_methodology.pdf																																																																																																																															
 
+
+*** Data Source for city markers:  https://simplemaps.com/data/us-zips
     '''
     ),
     html.H4(['Questions, comments or feedback are welcome! ', 

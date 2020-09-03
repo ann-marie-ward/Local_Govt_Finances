@@ -5,3 +5,4 @@ plotly-express
 xlrd
 dash-tabulator
 colorlover
+dash-leaflet
