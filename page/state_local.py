@@ -271,8 +271,8 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
                         "x": dff[xaxis_col],
                         "y": dff[yaxis_col],
                         "type": "bar",
-                      #  "hovertemplate": " $%{y:,.0f}<extra></extra>",
-                         "hovertemplate": " $%{y:,.0f}",
+                        "hovertemplate": " $%{y:,.0f}<extra></extra>",
+                        
                         "marker": {"color": color},
                     }
                 ],
@@ -649,7 +649,7 @@ def make_table(dff):
 #############  Optional columns to show it the table
 
 city_columns = [
-    {"id": "id", "name": [' ', "id"], "type": "text"},
+  #  {"id": "id", "name": [' ', "id"], "type": "text"},
     {"id": "ST", "name": [" ", "State"], "type": "text"},
     {"id": "County name", "name": [" ", "County"], "type": "text"},
     {"id": "ID name", "name": [" ", "Name"], "type": "text"},
@@ -1512,8 +1512,8 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
 
     if state == "USA":
         state = "Alabama"
-    if year < 2014:
-        year = 2014
+    if year < int(min(CITY_YEARS)):
+        year = int(min(CITY_YEARS))
 
     title = " ".join([str(year), state, exp_or_rev])
     update_title = title

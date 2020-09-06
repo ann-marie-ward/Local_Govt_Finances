@@ -5,10 +5,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import plotly.graph_objects as go
-import numpy as np
+
 import pathlib
 import dash_bootstrap_components as dbc
-
 
 from app import app, navbar3, footer3, asset_allocation_text, backtesting_text
 
@@ -32,7 +31,7 @@ df = (
 
 def highlights():
     """ creates data to highlight certain time periods """
-    years = ["2007", "2000", "1970", "1929", "1928"]
+    years = ["2007", "1999", "1970", "1929", "1928"]
     planning_time = [13, 10, 10, 20, 93]
     time_period_names = [
         "2007-2008 Great Financial Crisis",
@@ -56,7 +55,7 @@ def highlights():
 OPTIONS, TIMEFRAME = highlights()
 
 
-##################  Calculations - Backtest Returns #################
+####### functions for Backtest results, cagr and worst periods #################
 
 
 def backtest(stocks, cash, start_bal, nper, start_yr, pmt):
@@ -123,51 +122,159 @@ def backtest(stocks, cash, start_bal, nper, start_yr, pmt):
     dff = dff.merge(dff1, how="left")
     # fill in the starting balance for year[0]
     dff.loc[0, columns] = start_bal
-
     return dff
 
 
-def update_cagr(dff, planning_time, start_bal):
-    """calculate CAGR for cash, bonds and stocks in selected period and format for display panel
+def cagr(dff):
+    """calculate Compound Annual Growth Rate for a series: """
 
-            Compound Annual Growth Rate = CAGR = end$ /start$ exp (1/#yrs) -1 """
-
-    end = dff.loc[
-        planning_time,
-        ["All_Cash", "All_Bonds", "All_Stocks", "Total", "Inflation_only"],
-    ]
-
-    cagr = (((end / start_bal) ** (1 / planning_time)) - 1).fillna(0)
-
-    # format cagr
-    cagr = [
-        "{:.1%}".format(cagr[asset])
-        for asset in ["All_Cash", "All_Bonds", "All_Stocks", "Total", "Inflation_only"]
-    ]
-    return cagr
+    start_bal = dff.iat[0]
+    end_bal = dff.iat[-1]
+    planning_time = len(dff) - 1
+    cagr_result = ((end_bal / start_bal) ** (1 / planning_time)) - 1
+    return f"{cagr_result:.1%}"
 
 
-def update_worst(dff):
-    """calculate worst returns for cash, bonds and stocks in selected period
+def worst(dff, asset):
+    """calculate worst returns for asset in selected period
             and format for display panel """
 
-    assets = ["3-mon T.Bill", "10yr T.Bond", "S&P 500"]
-    worst = []
-    for asset in assets:
-        worst_yr_loss = min(dff[asset])
-        worst_loss = dff.loc[dff[asset] == worst_yr_loss]
-        worst_year = worst_loss.iloc[0, 0]
-        worst.append("{}:  {:.1%}".format(worst_year, worst_yr_loss))
-        print(worst)
-    return worst
+    worst_yr_loss = min(dff[asset])
+    worst_yr = dff.loc[dff[asset] == worst_yr_loss, "Year"].iloc[0]
+    return f"{worst_yr}:  {worst_yr_loss:.1%}"
+
+
+#####################  Tables   #####################################
+
+
+total_returns_table = html.Div(
+    [
+        dash_table.DataTable(
+            id="total_returns3",
+            columns=[{"id": "Year", "name": "Year", "type": "text"}]
+            + [
+                {
+                    "id": col,
+                    "name": col,
+                    "type": "numeric",
+                    "format": FormatTemplate.money(0),
+                }
+                for col in ["Cash", "Bonds", "Stocks", "Total"]
+            ],
+            style_table={
+                "overflowY": "scroll",
+                "border": "thin lightgrey solid",
+                "maxHeight": "425px",
+            },
+            style_cell={"textAlign": "right", "font-family": "arial"},
+            style_cell_conditional=[{"if": {"column_id": "Year"}, "type": "text"}],
+        )
+    ]
+)
+
+annual_returns_pct_table = html.Div(
+    [
+        dash_table.DataTable(
+            id="annual_returns_pct",
+            columns=(
+                [{"id": "Year", "name": "Year", "type": "text"}]
+                + [
+                    {
+                        "id": col,
+                        "name": col,
+                        "type": "numeric",
+                        "format": FormatTemplate.percentage(1),
+                    }
+                    for col in df.columns[1:]
+                ]
+            ),
+            style_cell={"textAlign": "right", "font-family": "arial"},
+            style_table={
+                "overflowY": "scroll",
+                "border": "thin lightgrey solid",
+                "maxHeight": "400px",
+            },
+            data=df.to_dict("records"),
+        )
+    ],
+)
+
+
+def make_summary_table(dff):
+    """  Make table to show cagr and  best and worst periods"""
+
+    start_yr = dff["Year"].iat[0]
+    end_yr = dff["Year"].iat[-1]
+
+    table_header = [
+        html.Thead(
+            html.Tr(
+                [
+                    html.Th(" "),
+                    html.Th(" "),
+                    html.Th(f"Annual returns (CAGR) from {start_yr} to {end_yr}"),
+                    html.Th(f"Worst Year from {start_yr} to {end_yr}"),
+                ]
+            )
+        )
+    ]
+    row1 = html.Tr(
+        [
+            html.Td("Cash"),
+            html.Td(
+                html.I(className="fa fa-money-bill-alt", style={"font-size": "150%"})
+            ),
+            html.Td(cagr(dff["All_Cash"])),
+            html.Td(worst(dff, "3-mon T.Bill")),
+        ],
+    )
+    row2 = html.Tr(
+        [
+            html.Td("Bonds"),
+            html.Td(html.I(className="fa fa-handshake", style={"font-size": "150%"})),
+            html.Td(cagr(dff["All_Bonds"])),
+            html.Td(worst(dff, "10yr T.Bond")),
+        ],
+    )
+    row3 = html.Tr(
+        [
+            html.Td("Stocks"),
+            html.Td(html.I(className="fa fa-industry ", style={"font-size": "150%"})),
+            html.Td(cagr(dff["All_Stocks"])),
+            html.Td(worst(dff, "S&P 500")),
+        ],
+    )
+    row4 = html.Tr(
+        [
+            html.Td("Inflation"),
+            html.Td(html.I(className="fa fa-ambulance", style={"font-size": "150%"})),
+            html.Td(cagr(dff["Inflation_only"])),
+            html.Td(" "),
+        ],
+    )
+    table_body = [html.Tbody([row1, row2, row3, row4], className="text-center")]
+
+    summary_table = dbc.Table(
+        table_header + table_body,
+        bordered=True,
+        responsive=True,
+        style={"backgroundColor": "whitesmoke"},
+    )
+    return summary_table
+
+
+datasource_text = dcc.Markdown(
+    """    
+    [Data source:](http://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/histretSP.html)
+    Historical Returns on Stocks, Bonds and Bills from NYU Stern School of Business
+    """
+)
 
 
 ######################  Figures  ####################################
 
 
 #######  Pie chart
-
-
 def make_pie(slider_input, title):
     colors = ["#3cb521", "#f5b668", "#3399f3"]
     fig = go.Figure(
@@ -175,11 +282,12 @@ def make_pie(slider_input, title):
             go.Pie(labels=["Cash", "Bonds", "Stocks"], values=slider_input, sort=False)
         ]
     )
-    fig.update_traces(textinfo="label+percent", textposition='inside', marker=dict(colors=colors)),
+    fig.update_traces(
+        textinfo="label+percent", textposition="inside", marker=dict(colors=colors)
+    ),
     fig.update_layout(
         title_text=title,
         title_x=0.5,
-
         margin=go.layout.Margin(b=25, t=75, l=35, r=25),
         height=375,
         paper_bgcolor="whitesmoke",
@@ -187,19 +295,8 @@ def make_pie(slider_input, title):
     return fig
 
 
-pie_chart = html.Div(
-    dcc.Graph(
-        id="pie_allocation3",
-        figure=make_pie([10, 40, 50], "Moderate Asset Allocation",),
-    ),
-    className="mb-2",
-    style={"height": "375px"},
-)
-
 #########  Line chart
-
-
-def make_returns_chart(dff, start_bal):
+def make_returns_chart(dff):
     start = dff.loc[1, "Year"]
     x = dff["Year"]
     yrs = dff["Year"].size - 1
@@ -248,7 +345,7 @@ def make_returns_chart(dff, start_bal):
     )
     fig.update_layout(
         title=title,
-        template = 'none',
+        template="none",
         showlegend=True,
         legend=dict(x=0.01, y=0.99),
         height=400,
@@ -257,134 +354,6 @@ def make_returns_chart(dff, start_bal):
         xaxis=dict(title="Year Ended", fixedrange=True, dtick=dtick),
     )
     return fig
-
-
-#####################  Tables   #####################################
-
-
-total_returns_table = html.Div(
-    [
-        dash_table.DataTable(
-            id="total_returns3",
-            columns=[{"id": "Year", "name": "Year", "type": "text"}]
-            + [
-                {
-                    "id": col,
-                    "name": col,
-                    "type": "numeric",
-                    "format": FormatTemplate.money(0),
-                }
-                for col in ["Cash", "Bonds", "Stocks", "Total"]
-            ],
-            style_table={
-                "overflowY": "scroll",
-                "border": "thin lightgrey solid",
-                "maxHeight": "425px",
-            },
-            style_cell={"textAlign": "right", "font-family": "arial"},
-            style_cell_conditional=[{"if": {"column_id": "Year"}, "type": "text"}],
-        )
-    ]
-)
-
-
-annual_returns_pct_table = html.Div(
-    [
-        dash_table.DataTable(
-            id="annual_returns_pct",
-            columns=(
-                [{"id": "Year", "name": "Year", "type": "text"}]
-                + [
-                    {
-                        "id": col,
-                        "name": col,
-                        "type": "numeric",
-                        "format": FormatTemplate.percentage(1),
-                    }
-                    for col in df.columns[1:]
-                ]
-            ),
-            style_cell={"textAlign": "right", "font-family": "arial"},
-            style_table={
-                "overflowY": "scroll",
-                "border": "thin lightgrey solid",
-                "maxHeight": "400px",
-            },
-            data=df.to_dict("records"),
-        )
-    ],
-)
-
-
-########## Make table for best and worst periods
-
-table_header = [
-    html.Thead(
-        html.Tr(
-            [
-                html.Th(" "),
-                html.Th(" "),
-                html.Th(id="title_cagr"),
-                html.Th(id="title_crash3"),
-            ]
-        )
-    )
-]
-
-fa_cash = html.I(className="fa fa-money-bill-alt", style={"font-size": "150%"})
-fa_bonds = html.I(className="fa fa-handshake", style={"font-size": "150%"})
-fa_stocks = html.I(className="fa fa-industry ", style={"font-size": "150%"})
-fa_inflation = html.I(className="fa fa-ambulance", style={"font-size": "150%"})
-
-row1 = html.Tr(
-    [
-        html.Td("Cash"),
-        html.Td(fa_cash),
-        html.Td(id="cash_cagr"),
-        html.Td(id="cash_crash3"),
-    ],
-)
-row2 = html.Tr(
-    [
-        html.Td("Bonds"),
-        html.Td(fa_bonds),
-        html.Td(id="bond_cagr"),
-        html.Td(id="bond_crash3"),
-    ],
-)
-row3 = html.Tr(
-    [
-        html.Td("Stocks"),
-        html.Td(fa_stocks),
-        html.Td(id="stock_cagr"),
-        html.Td(id="stock_crash3"),
-    ],
-)
-row4 = html.Tr(
-    [
-        html.Td("Inflation"),
-        html.Td(fa_inflation),
-        html.Td(id="inflation_cagr"),
-        html.Td(" "),
-    ],
-)
-
-table_body = [html.Tbody([row1, row2, row3, row4], className="text-center")]
-
-best_worst_table = dbc.Table(
-    table_header + table_body,
-    bordered=True,
-    responsive=True,
-    style={"backgroundColor": "whitesmoke"},
-)
-
-
-datasource_text = dcc.Markdown(
-    """    
-    [Data source:](http://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/histretSP.html)
-    Historical Returns on Stocks, Bonds and Bills from NYU Stern School of Business
-    """
-)
 
 
 #####################  Make Tabs  ###################################
@@ -407,7 +376,6 @@ asset_allocation_card = html.Div(
         className="mt-4",
     )
 )
-
 
 slider_card = html.Div(
     dbc.Card(
@@ -455,7 +423,6 @@ inflation_checkbox = html.Div(
         value=["Yes"],
     )
 )
-
 
 time_period_card = html.Div(
     dbc.Card(
@@ -526,11 +493,11 @@ amount_input_card = html.Div(
             ),
             dbc.InputGroup(
                 [
-                    dbc.InputGroupAddon("Results: ", addon_type="prepend"),
+                    dbc.InputGroupAddon("My Portfolio Results: ", addon_type="prepend"),
                     dbc.Input(id="results3", type="text", disabled=True,),
                 ],
                 className="mb-3",
-                style={"width": "300px"},
+                style={"width": "375px"},
             ),
         ],
         body=True,
@@ -538,8 +505,7 @@ amount_input_card = html.Div(
     )
 )
 
-
-#########  Results Tab componenets
+#  Results Tab components
 
 results_card = html.Div(
     dbc.Card(
@@ -574,7 +540,6 @@ learn_card = html.Div(
         className="mt-4",
     )
 )
-
 
 ######## Build tabs
 tabs = html.Div(
@@ -611,7 +576,6 @@ tabs = html.Div(
     style={"minHeight": "800px"},
 )
 
-
 ########################  Main Layout     ###########################
 
 layout = dbc.Container(
@@ -634,10 +598,10 @@ layout = dbc.Container(
                 ),
                 dbc.Col(
                     [
-                        pie_chart,
+                        dcc.Graph(id="pie_allocation3", className="mb-2"),
                         dcc.Graph(id="returns_chart3", className="border"),
                         html.H6(datasource_text),
-                        best_worst_table,
+                        html.Div(id="summary_table3"),
                     ],
                     width={"size": 7, "order": 2},
                     className="pt-4 ",
@@ -689,12 +653,12 @@ def update_pie(stocks, cash):
     slider_input = [cash, bonds, stocks]
 
     if stocks >= 70:
-        style = "Aggressive"
+        investment_style = "Aggressive"
     elif stocks <= 30:
-        style = "Conservative"
+        investment_style = "Conservative"
     else:
-        style = "Moderate"
-    figure = make_pie(slider_input, style + " Asset Allocation")
+        investment_style = "Moderate"
+    figure = make_pie(slider_input, investment_style + " Asset Allocation")
     return figure
 
 
@@ -710,15 +674,7 @@ def update_timeframe(selected_yr):
     [
         Output("total_returns3", "data"),
         Output("returns_chart3", "figure"),
-        Output("title_cagr", "children"),
-        Output("cash_cagr", "children"),
-        Output("bond_cagr", "children"),
-        Output("stock_cagr", "children"),
-        Output("inflation_cagr", "children"),
-        Output("title_crash3", "children"),
-        Output("cash_crash3", "children"),
-        Output("bond_crash3", "children"),
-        Output("stock_crash3", "children"),
+        Output("summary_table3", "children"),
         Output("results3", "value"),
     ],
     [
@@ -739,21 +695,11 @@ def update_totals(stocks, cash, start_bal, planning_time, start_yr, inflation):
     if start_yr is None:
         start_yr = MIN_YR
 
-    bonds = 100 - stocks - cash
-    if stocks >= 70:
-        style = "aggressive growth"
-    elif stocks <= 30:
-        style = "conservative"
-    else:
-        style = "moderate"
-
     # calculate valid time frames and ranges for UI
-
     max_time = MAX_YR + 1 - start_yr
     planning_time = max_time if planning_time > max_time else planning_time
     if start_yr + planning_time > MAX_YR:
         start_yr = min(df.iloc[-planning_time, 0], MAX_YR)  # 0 is Year column
-    end_yr = min(MAX_YR, start_yr + planning_time - 1)
     start_yr = int(start_yr)
 
     # create df of backtest results
@@ -763,39 +709,16 @@ def update_totals(stocks, cash, start_bal, planning_time, start_yr, inflation):
     data = dff.to_dict("records")
 
     # create the line chart
-    figure = make_returns_chart(dff, start_bal)
-
+    figure = make_returns_chart(dff)
     figure.update_traces(visible=False, selector=dict(name="Inflation"))
     if inflation:
         figure.update_traces(visible=True, selector=dict(name="Inflation"))
 
-    # update cagr
-    title_cagr = f"Annual returns (CAGR) from {start_yr} to {end_yr}"
-    cash_cagr, bonds_cagr, stocks_cagr, total_cagr, inflation_cagr = update_cagr(
-        dff, planning_time, start_bal
-    )
+    summary_table = make_summary_table(dff)
 
-    # update worst year info
-    title_crash = f"Worst Year from {start_yr} to {end_yr}"
-    worst_cash, worst_bonds, worst_stocks = update_worst(dff)
+    results = "${:0,.0f}     {}".format(dff["Total"].iloc[-1], cagr(dff["Total"]))
 
-    results = "${:0,.0f}     {}".format(dff["Total"].iloc[-1], total_cagr)
-    
-    
-    return (
-        [data,
-        figure,
-        title_cagr,
-        cash_cagr,
-        bonds_cagr,
-        stocks_cagr,
-        inflation_cagr,
-        title_crash,
-        worst_cash,
-        worst_bonds,
-        worst_stocks,
-        results]
-    )
+    return data, figure, summary_table, results
 
 
 if __name__ == "__main__":
