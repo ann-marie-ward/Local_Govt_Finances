@@ -1014,8 +1014,9 @@ tabs = html.Div(
         [
             dbc.Tab(
                 [
-                     # html.Div( dl.Map([dl.TileLayer(), geojson], zoom=6, center=(33.5, -86.8))
-                     #           ,style={'height':'370px',"position": "relative"}),
+                    #html.Div( dl.Map([dl.TileLayer(url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"), geojson]),
+                    #          style={'height':'370px',"position": "relative"}),
+                    
                     map,
                     make_table(df_exp),
                     all_states_button,
@@ -1026,12 +1027,7 @@ tabs = html.Div(
                 labelClassName="d-none",
             ),
             dbc.Tab(
-                [
-                    # html.Div([
-                    #     dl.Map([dl.TileLayer(), geojson])
-                    # ], style={'width': '100%', 'height': '300px'}),
-                    #     # style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block",
-                        #       "position": "relative"}),
+                [                    
                     html.H3(id="city_title", className="bg-white text-center border"),
                     html.Div( dl.Map([dl.TileLayer(url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"), geojson]),
                               style={'height':'370px',"position": "relative"}),
