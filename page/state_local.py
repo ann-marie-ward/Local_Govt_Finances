@@ -1,3 +1,7 @@
+# see this example for correctly sizing map in tab  http://jsfiddle.net/ve2huzxw/52/
+# county shape files by fips and leaflet:  https://stackoverflow.com/questions/58152812/how-do-i-map-county-level-data-as-a-heatmap-using-fips-codes-interactively-in
+
+
 import dash
 from dash.dependencies import Input, Output, State
 import dash_table
@@ -17,6 +21,9 @@ import numpy as np
 import pathlib
 import pickle
 import colorlover
+import json
+import dash_leaflet as dl
+import dash_leaflet.express as dlx
 
 from app import app, navbar, footer
 
@@ -37,6 +44,10 @@ with open(DATA_PATH.joinpath("df_exp.pickle"), "rb") as handle:
 with open(DATA_PATH.joinpath("df_rev.pickle"), "rb") as handle:
     df_rev = pickle.load(handle)
 
+with open(DATA_PATH.joinpath("df_lat_lng.pickle"), "rb") as handle:
+    df_lat_lng = pickle.load(handle)
+
+
 
 # Local  Expenditures and Revenue df
 def get_df_exp_rev(ST):
@@ -47,6 +58,16 @@ def get_df_exp_rev(ST):
 
     city_df_exp = pd.merge(city_df_exp, du.df_cat_desc, how="left", on="Line")
     city_df_rev = pd.merge(city_df_rev, du.df_cat_desc, how="left", on="Line")
+
+
+    ### TODO move add lat long to data prep?
+    # city_df_exp = pd.merge(city_df_exp, df_lat_lng, how='left', left_on=['County name', 'ID name'],  right_on =['county_name', 'city'])
+    # city_df_exp['lat'] = city_df_exp['lat'].fillna(0)
+    #
+    # city_df_rev = pd.merge(city_df_rev, df_lat_lng, how='left', left_on=['County name', 'ID name'],
+    #                        right_on=['county_name', 'city'])
+    # city_df_rev['lat'] = city_df_rev['lat'].fillna(0)
+
     ### TODO move rename to data prep
     # this makes "ID code" the "id" for the dash datatable functions
     city_df_exp = city_df_exp.rename(columns={"ID code": "id"})
@@ -271,8 +292,8 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
                         "x": dff[xaxis_col],
                         "y": dff[yaxis_col],
                         "type": "bar",
-                        "hovertemplate": " $%{y:,.0f}<extra></extra>",
-                        
+                         "hovertemplate": " $%{y:,.0f}<extra></extra>",
+
                         "marker": {"color": color},
                     }
                 ],
@@ -436,6 +457,19 @@ map = html.Div(
     className="mt-2 mb-2",
     style={"height": "370px"},
 )
+
+#leaflet map: Create geojson.
+
+geojson = dl.GeoJSON( id="geojson", format="geobuf",
+                    zoomToBounds=True,  # when true, zooms to bounds when data changes
+                    cluster=True,  # when true, data are clustered
+                    clusterToLayer=dlx.scatter.cluster_to_layer,  # how to draw clusters
+                    zoomToBoundsOnClick=True,  # when true, zooms to bounds of feature (e.g. cluster) on click
+                    options=dict(pointToLayer=dlx.scatter.point_to_layer),  # how to draw points
+                    superClusterOptions=dict(radius=150),  # adjust cluster size
+                 #   hideout=dict(colorscale=csc_map[default_csc], color_prop=color_prop, **minmax)
+                     )
+
 
 
 ####################### Dash Tables  ##########################################
@@ -649,7 +683,7 @@ def make_table(dff):
 #############  Optional columns to show it the table
 
 city_columns = [
-  #  {"id": "id", "name": [' ', "id"], "type": "text"},
+   # {"id": "id", "name": [' ', "id"], "type": "text"},
     {"id": "ST", "name": [" ", "State"], "type": "text"},
     {"id": "County name", "name": [" ", "County"], "type": "text"},
     {"id": "ID name", "name": [" ", "Name"], "type": "text"},
@@ -972,11 +1006,16 @@ collapse = html.Div(
 
 #############   Tabs
 
+
+
+
 tabs = html.Div(
     dbc.Tabs(
         [
             dbc.Tab(
                 [
+                     # html.Div( dl.Map([dl.TileLayer(), geojson], zoom=6, center=(33.5, -86.8))
+                     #           ,style={'height':'370px',"position": "relative"}),
                     map,
                     make_table(df_exp),
                     all_states_button,
@@ -988,15 +1027,21 @@ tabs = html.Div(
             ),
             dbc.Tab(
                 [
-                    html.H3(id="city_title", className="bg-white text-center"),
+                    # html.Div([
+                    #     dl.Map([dl.TileLayer(), geojson])
+                    # ], style={'width': '100%', 'height': '300px'}),
+                    #     # style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block",
+                        #       "position": "relative"}),
+                    html.H3(id="city_title", className="bg-white text-center border"),
+                    html.Div( dl.Map([dl.TileLayer(url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"), geojson]),
+                              style={'height':'370px',"position": "relative"}),
+
                     html.Div(id="city_legend"),
                     city_datatable,
                     collapse,
                     html.Div(id="city_bar_charts_container"),
                 ],
                 tab_id="city_table_tab",
-              #  label="Local Governments",
-              #  tab_style={"margin-left": "10px",},
                 labelClassName="d-none",
             ),
         ],
@@ -1092,6 +1137,7 @@ layout = dbc.Container(
                             width={"size": 8, "order": 2},
                             className="bg-white mt-3 mb-3",
                         ),
+
                         dbc.Col(  # stacked sunbursts
                             html.Div(
                                 [mystate_dropdown, mystate_sunburst, state_sunburst, USA_sunburst],
@@ -1104,6 +1150,11 @@ layout = dbc.Container(
                 ),
             ]
         ),
+        # html.Div( dl.Map([dl.TileLayer(), geojson], zoom=6, center=(33.5, -86.8))
+        #           ,style={'height':'370px',"position": "relative"}),
+
+
+
         ########################  large sunburst  ######################
         dbc.Row(
             [
@@ -1115,6 +1166,7 @@ layout = dbc.Container(
             ],
             className="bg-white mt-5",
         ),
+
         ###########################   footer #########################
         html.Div(  # footer
             [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5"))),]
@@ -1381,7 +1433,7 @@ def switch_tab(state, local):
         return {"display": "none"}, int(min(YEARS)), "state_table_tab"
 
 
-#######  update map and table  ##################################################\
+#######  update State map and table  ##################################################\
 @app.callback(
     [
         Output("map", "figure"),
@@ -1492,6 +1544,7 @@ def update_map(
         Output("city_table", "columns"),
         Output("city_title", "children"),
         Output("collapse", "is_open"),
+
     ],
     [
         Input("store_exp_or_rev", "data"),
@@ -1512,8 +1565,8 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
 
     if state == "USA":
         state = "Alabama"
-    if year < int(min(CITY_YEARS)):
-        year = int(min(CITY_YEARS))
+    if year < 2014:
+        year = 2014
 
     title = " ".join([str(year), state, exp_or_rev])
     update_title = title
@@ -1558,6 +1611,7 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
 
     # remove empty cols
     df_table = df_table.loc[:, (df_table != 0).any(axis=0)]
+
     if df_table.empty:
         return [], [], [], True
 
@@ -1588,35 +1642,41 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
     return df_table.to_dict("records"), columns, update_title, False
 
 
-# update Local styles and bar chart:
 
+
+# update Local styles and bar chart:
 
 @app.callback(
     [
         Output("city_table", "style_data_conditional"),
         Output("city_bar_charts_container", "children"),
         Output("city_legend", "children"),
+        Output("geojson", "hideout"),
+        Output("geojson", "data"),
     ],
     [
         Input("city_table", "derived_virtual_data"),
         Input("city_table", "derived_viewport_row_ids"),
     ],
+    [
+        State('city_table', "data")
+    ]
 )
-def update_city_table(data, viewport_ids):
+def update_city_table(data, viewport_ids, data_state):
 
     dff = pd.DataFrame(data)
     if dff.empty:
         raise PreventUpdate
     else:
         if "Per Capita" in dff:
-            col = "Per Capita"
+            color_column = "Per Capita"
         elif "Per Student" in dff:
-            col = "Per Student"
+            color_column = "Per Student"
         else:
-            col = "Amount"
+            color_column = "Amount"
 
         (styles, legend, df_color, max_y) = discrete_background_color_bins(
-            dff, columns=[col]
+            dff, columns=[color_column]
         )
 
         styles = styles + [
@@ -1633,12 +1693,37 @@ def update_city_table(data, viewport_ids):
 
         bar_charts = []
         if (not df_color.empty) and (len(dff['id'].unique()) > 1):
-            dff[col + "_color"] = df_color
+            dff[color_column + "_color"] = df_color
             dff = dff[dff["id"].isin(viewport_ids)]
-            bar_charts = make_bar_charts(dff, col, "ID name", clip=max_y)
-           
+            bar_charts = make_bar_charts(dff, color_column, "ID name", clip=max_y)
 
-        return styles, bar_charts, legend
+
+
+        # update map
+        dff_state = pd.DataFrame(data_state)
+        dff_lat_lng = df_lat_lng[df_lat_lng['state_id'] == dff_state['ST'].iat[0]]
+
+        dff_state['name'] = dff_state['ID name'].str[:-4]
+        dff_state = pd.merge(dff_state, dff_lat_lng, how='left', left_on=['County name', 'name'],
+                            right_on=['county_name', 'city'])
+        dff_state = dff_state.dropna()
+
+        dicts = dff_state.to_dict('rows')
+
+
+        for item in dicts:
+            item["tooltip"] = "${:.0f} per capita    {}".format(item[color_column], item['name'])
+            item["popup"] = item["name"]  # bind popup
+        geojson = dlx.dicts_to_geojson(dicts, lon="lng")  # convert to geojson
+        geobuf = dlx.geojson_to_geobuf(geojson)  # convert to geobuf
+
+        colors = colorlover.scales[str(5)]["seq"]["Blues"]
+        hideout = dict(colorscale=colors, color_prop=color_column, popup_prop='name', min=0, max=max_y,
+                       circle_options= dict(radius = 10))
+
+        #circle_options: {fillOpacity: 1, stroke: false, radius: 5}};
+
+        return styles, bar_charts, legend, hideout, geobuf
 
 
 if __name__ == "__main__":

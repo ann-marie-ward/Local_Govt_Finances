@@ -6,16 +6,23 @@ import dash_core_components as dcc
 
 
 # 3rd party js to export as xlsx for Tabulator
-external_scripts = ['https://oss.sheetjs.com/sheetjs/xlsx.full.min.js']
+# external_scripts = ['https://oss.sheetjs.com/sheetjs/xlsx.full.min.js']
 
+# for leaflet
+chroma = "https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"
+
+# leaflet = <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+#    integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+#    crossorigin=""/>
+
+leaflet = "https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
 FONT_AWESOME = "https://use.fontawesome.com/releases/v5.10.2/css/all.css"
 
 external_stylesheets = [
    dbc.themes.SPACELAB, FONT_AWESOME
- # 'https://codepen.io/chriddyp/pen/bWLwgP.css' ,    
 ]
 
-app = dash.Dash(__name__, external_scripts=external_scripts, external_stylesheets=external_stylesheets, 
+app = dash.Dash(__name__, external_scripts=[chroma], external_stylesheets=external_stylesheets,
                 meta_tags=[{"name": "viewport", "content": "width=device-width", "initial-scale" :1,}])
 
 
@@ -33,14 +40,14 @@ navbar = html.Div([
                         
                     ),
                     dbc.Col(
-                        html.H4(dcc.Link('State', href="/page/state", className ='text-white') ),       
-                        width={"size": 1, "order": 10, "offset": 4},
+                        html.H4(dcc.Link('State & Local Overview', href="/page/state", className ='text-white') ),
+                        width={"size": 2, "order": 10, "offset": 4},
                     ),
-                    dbc.Col(
-                        html.H4(dcc.Link('Local', href="/page/local", className ='text-white')),   
-                      
-                        width={"size": 1, "order": 11,},
-                    ),
+                    # dbc.Col(
+                    #     html.H4(dcc.Link('Local', href="/page/local", className ='text-white')),
+                    #
+                    #     width={"size": 1, "order": 11,},
+                    # ),
                     dbc.Col(
                         html.H4(dcc.Link('About', href="/page/about", className ='text-white')),       
                         width={"size": 1, "order": 12,},
