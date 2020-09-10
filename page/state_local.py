@@ -30,6 +30,7 @@ from app import app, navbar, footer
 
 import data_utilities as du
 
+
 pd.set_option("display.max_rows", 100)
 pd.set_option("display.max_columns", 10)
 
@@ -48,7 +49,6 @@ with open(DATA_PATH.joinpath("df_lat_lng.pickle"), "rb") as handle:
     df_lat_lng = pickle.load(handle)
 
 
-
 # Local  Expenditures and Revenue df
 def get_df_exp_rev(ST):
     """ loads the df_exp and df_rev files by state and adds Cat and Descr columns"""
@@ -58,7 +58,6 @@ def get_df_exp_rev(ST):
 
     city_df_exp = pd.merge(city_df_exp, du.df_cat_desc, how="left", on="Line")
     city_df_rev = pd.merge(city_df_rev, du.df_cat_desc, how="left", on="Line")
-
 
     ### TODO move add lat long to data prep?
     # city_df_exp = pd.merge(city_df_exp, df_lat_lng, how='left', left_on=['County name', 'ID name'],  right_on =['county_name', 'city'])
@@ -280,7 +279,6 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
     color_column = yaxis_col + "_color"
     color = dff[color_column] if color_column in dff else default_color
     range = [] if clip == "no" else [0, clip]
-    
 
     return [
         dcc.Graph(
@@ -292,8 +290,7 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
                         "x": dff[xaxis_col],
                         "y": dff[yaxis_col],
                         "type": "bar",
-                         "hovertemplate": " $%{y:,.0f}<extra></extra>",
-
+                        "hovertemplate": " $%{y:,.0f}<extra></extra>",
                         "marker": {"color": color},
                     }
                 ],
@@ -301,13 +298,12 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
                     "xaxis": {"automargin": True, "tickangle": -40, "fixedrange": True},
                     "yaxis": {
                         "automargin": True,
-                       
                         "title": {"text": yaxis_col},
                         "range": range,
                         "fixedrange": True,
                     },
-                     'barmode' : 'relative',
-                     'hovermode': 'closest',
+                    "barmode": "relative",
+                    "hovermode": "closest",
                     "height": 375,
                     "margin": {"t": 10, "l": 10, "r": 10, "b": 200},
                 },
@@ -373,7 +369,7 @@ state_sunburst = html.Div(
 
 USA_sunburst = html.Div(
     [
-        dcc.Graph(           
+        dcc.Graph(
             figure=make_sunburst(
                 df_exp,
                 ["USA", "Category"],
@@ -383,7 +379,7 @@ USA_sunburst = html.Div(
             style={"height": "200px"},
             config={"displayModeBar": False},
         ),
-        html.Div(          
+        html.Div(
             children=make_stats_table(
                 df_pop[int(START_YR)].astype(float).sum(), df_exp, 51, START_YR
             ),
@@ -458,18 +454,31 @@ map = html.Div(
     style={"height": "370px"},
 )
 
-#leaflet map: Create geojson.
+# leaflet map: Create geojson.
 
-geojson = dl.GeoJSON( id="geojson", format="geobuf",
-                    zoomToBounds=True,  # when true, zooms to bounds when data changes
-                    cluster=True,  # when true, data are clustered
-                    clusterToLayer=dlx.scatter.cluster_to_layer,  # how to draw clusters
-                    zoomToBoundsOnClick=True,  # when true, zooms to bounds of feature (e.g. cluster) on click
-                    options=dict(pointToLayer=dlx.scatter.point_to_layer),  # how to draw points
-                    superClusterOptions=dict(radius=150),  # adjust cluster size
-                 #   hideout=dict(colorscale=csc_map[default_csc], color_prop=color_prop, **minmax)
-                     )
+geojson = dl.GeoJSON(
+    id="geojson",
+    format="geobuf",
+    zoomToBounds=True,  # when true, zooms to bounds when data changes
+    cluster=True,  # when true, data are clustered
+    clusterToLayer=dlx.scatter.cluster_to_layer,  # how to draw clusters
+    zoomToBoundsOnClick=True,  # when true, zooms to bounds of feature (e.g. cluster) on click
+    options=dict(pointToLayer=dlx.scatter.point_to_layer),  # how to draw points
+    superClusterOptions=dict(radius=150),  # adjust cluster size
+)
 
+leaflet_map = html.Div(
+    dl.Map(
+        [
+            dl.TileLayer(
+                url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"
+            ),
+            geojson,
+        ],
+        id="leaflet",
+    ),
+    style={"height": "370px", "position": "relative"},
+)
 
 
 ####################### Dash Tables  ##########################################
@@ -683,7 +692,7 @@ def make_table(dff):
 #############  Optional columns to show it the table
 
 city_columns = [
-   # {"id": "id", "name": [' ', "id"], "type": "text"},
+    # {"id": "id", "name": [' ', "id"], "type": "text"},
     {"id": "ST", "name": [" ", "State"], "type": "text"},
     {"id": "County name", "name": [" ", "County"], "type": "text"},
     {"id": "ID name", "name": [" ", "Name"], "type": "text"},
@@ -925,7 +934,8 @@ state_local_dropdown = html.Div(
 type_dropdown = html.Div(
     [
         html.Div(
-            "Select a Type: ie city, county gov, school district...", style={"font-weight": "bold"}
+            "Select a Type: ie city, county gov, school district...",
+            style={"font-weight": "bold"},
         ),
         dcc.Dropdown(
             id="city_type",
@@ -954,7 +964,7 @@ county_dropdown = html.Div(
                 {"label": c, "value": c}
                 for c in init_city_df_exp["County name"].dropna().unique()
             ],
-             placeholder="Enter a name",
+            placeholder="Enter a name",
         ),
     ],
     className="px-2",
@@ -988,7 +998,7 @@ clear_button = html.Div(
     ]
 )
 
-collapse = html.Div(
+warning_msg_collapse = html.Div(
     [
         dbc.Button(id="collapse-button", style={"display": "none"}),
         dbc.Collapse(
@@ -1007,34 +1017,33 @@ collapse = html.Div(
 #############   Tabs
 
 
-
-
 tabs = html.Div(
     dbc.Tabs(
         [
             dbc.Tab(
                 [
-                    #html.Div( dl.Map([dl.TileLayer(url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"), geojson]),
-                    #          style={'height':'370px',"position": "relative"}),
-                    
+                    # leaflet_map
                     map,
                     make_table(df_exp),
                     all_states_button,
                     html.Div(id="bar_charts_container"),
                 ],
-                 tab_id="state_table_tab",
-              #  label="States",
+                tab_id="state_table_tab",
+                #  label="States",
                 labelClassName="d-none",
             ),
             dbc.Tab(
-                [                    
+                [
+                    # html.Div([
+                    #     dl.Map([dl.TileLayer(), geojson])
+                    # ], style={'width': '100%', 'height': '300px'}),
+                    #     # style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block",
+                    #       "position": "relative"}),
                     html.H3(id="city_title", className="bg-white text-center border"),
-                    html.Div( dl.Map([dl.TileLayer(url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"), geojson]),
-                              style={'height':'370px',"position": "relative"}),
-
+                    leaflet_map,
                     html.Div(id="city_legend"),
                     city_datatable,
-                    collapse,
+                    warning_msg_collapse,
                     html.Div(id="city_bar_charts_container"),
                 ],
                 tab_id="city_table_tab",
@@ -1051,14 +1060,9 @@ tabs = html.Div(
 #####################   Header Cards and Markdown #############################
 first_card = dbc.Card(
     dbc.CardBody(
-        [
-            html.H5("", className="card-title"),
-            html.P(""),
-           
-        ], style={'height': '75px'}
+        [html.H5("", className="card-title"), html.P(""),], style={"height": "75px"}
     )
 )
-
 
 
 intro = html.Div(
@@ -1133,10 +1137,14 @@ layout = dbc.Container(
                             width={"size": 8, "order": 2},
                             className="bg-white mt-3 mb-3",
                         ),
-
                         dbc.Col(  # stacked sunbursts
                             html.Div(
-                                [mystate_dropdown, mystate_sunburst, state_sunburst, USA_sunburst],
+                                [
+                                    mystate_dropdown,
+                                    mystate_sunburst,
+                                    state_sunburst,
+                                    USA_sunburst,
+                                ],
                             ),
                             width={"size": 2, "order": "last"},
                             className="bg-primary",
@@ -1146,11 +1154,6 @@ layout = dbc.Container(
                 ),
             ]
         ),
-        # html.Div( dl.Map([dl.TileLayer(), geojson], zoom=6, center=(33.5, -86.8))
-        #           ,style={'height':'370px',"position": "relative"}),
-
-
-
         ########################  large sunburst  ######################
         dbc.Row(
             [
@@ -1162,7 +1165,6 @@ layout = dbc.Container(
             ],
             className="bg-white mt-5",
         ),
-
         ###########################   footer #########################
         html.Div(  # footer
             [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5"))),]
@@ -1237,7 +1239,7 @@ def update_exp_or_rev(exp, rev, clear_click):
 )
 def update_state_dropdown(
     clickData, clear_click, at, all_states, _, __, ___, _x, __x, state
-    ):
+):
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
@@ -1333,8 +1335,11 @@ def update_counties(
     dff = exp[du.state_abbr[state]].copy()
 
     if type and (type != "all"):
-        if type == 'c':           
-            dff = dff[dff["Gov Type"].str.contains('2', na=False) | dff["Gov Type"].str.contains('3', na=False)]
+        if type == "c":
+            dff = dff[
+                dff["Gov Type"].str.contains("2", na=False)
+                | dff["Gov Type"].str.contains("3", na=False)
+            ]
         else:
             dff = dff[dff["Gov Type"].str.contains(type, na=False)]
     if county and (county != "all"):
@@ -1513,10 +1518,8 @@ def update_map(
     )
 
     bar_charts = []
-    if (len(dff_table['State'].unique()) > 1):
-         bar_charts = make_bar_charts(pd.DataFrame(viewport), "Per Capita", "State")
-
-
+    if len(dff_table["State"].unique()) > 1:
+        bar_charts = make_bar_charts(pd.DataFrame(viewport), "Per Capita", "State")
 
     if dff_map.empty:
         return [], [], [], [], all_state_btn
@@ -1540,7 +1543,6 @@ def update_map(
         Output("city_table", "columns"),
         Output("city_title", "children"),
         Output("collapse", "is_open"),
-
     ],
     [
         Input("store_exp_or_rev", "data"),
@@ -1575,8 +1577,11 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
 
     # filter  table
     if type and (type != "all"):
-        if type == 'c':           
-            df_table = df_table[df_table["Gov Type"].str.contains('2', na=False) | df_table["Gov Type"].str.contains('3', na=False)].copy()
+        if type == "c":
+            df_table = df_table[
+                df_table["Gov Type"].str.contains("2", na=False)
+                | df_table["Gov Type"].str.contains("3", na=False)
+            ].copy()
         else:
             df_table = df_table[df_table["Gov Type"].str.contains(type, na=False)]
         update_title = " ".join([title, " --> ", du.code_type[type]])
@@ -1638,9 +1643,8 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
     return df_table.to_dict("records"), columns, update_title, False
 
 
-
-
 # update Local styles and bar chart:
+
 
 @app.callback(
     [
@@ -1654,9 +1658,7 @@ def update_city_table(exp_or_rev, year, cat, subcat, state, type, county, name):
         Input("city_table", "derived_virtual_data"),
         Input("city_table", "derived_viewport_row_ids"),
     ],
-    [
-        State('city_table', "data")
-    ]
+    [State("city_table", "data")],
 )
 def update_city_table(data, viewport_ids, data_state):
 
@@ -1688,36 +1690,44 @@ def update_city_table(data, viewport_ids, data_state):
         ]
 
         bar_charts = []
-        if (not df_color.empty) and (len(dff['id'].unique()) > 1):
+        if (not df_color.empty) and (len(dff["id"].unique()) > 1):
             dff[color_column + "_color"] = df_color
             dff = dff[dff["id"].isin(viewport_ids)]
             bar_charts = make_bar_charts(dff, color_column, "ID name", clip=max_y)
 
-
-
         # update map
         dff_state = pd.DataFrame(data_state)
-        dff_lat_lng = df_lat_lng[df_lat_lng['state_id'] == dff_state['ST'].iat[0]]
+        dff_lat_lng = df_lat_lng[df_lat_lng["state_id"] == dff_state["ST"].iat[0]]
 
-        dff_state['name'] = dff_state['ID name'].str[:-4]
-        dff_state = pd.merge(dff_state, dff_lat_lng, how='left', left_on=['County name', 'name'],
-                            right_on=['county_name', 'city'])
+        dff_state["name"] = dff_state["ID name"].str[:-4]
+        dff_state = pd.merge(
+            dff_state,
+            dff_lat_lng,
+            how="left",
+            left_on=["County name", "name"],
+            right_on=["county_name", "city"],
+        )
         dff_state = dff_state.dropna()
 
-        dicts = dff_state.to_dict('rows')
-
+        dicts = dff_state.to_dict("rows")
 
         for item in dicts:
-            item["tooltip"] = "${:.0f} per capita    {}".format(item[color_column], item['name'])
+            item["tooltip"] = "${:.0f} per capita    {}".format(
+                item[color_column], item["name"]
+            )
             item["popup"] = item["name"]  # bind popup
         geojson = dlx.dicts_to_geojson(dicts, lon="lng")  # convert to geojson
         geobuf = dlx.geojson_to_geobuf(geojson)  # convert to geobuf
 
         colors = colorlover.scales[str(5)]["seq"]["Blues"]
-        hideout = dict(colorscale=colors, color_prop=color_column, popup_prop='name', min=0, max=max_y,
-                       circle_options= dict(radius = 10))
-
-        #circle_options: {fillOpacity: 1, stroke: false, radius: 5}};
+        hideout = dict(
+            colorscale=colors,
+            color_prop=color_column,
+            popup_prop="name",
+            min=0,
+            max=max_y,
+            circle_options=dict(radius=10),
+        )
 
         return styles, bar_charts, legend, hideout, geobuf
 
