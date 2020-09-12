@@ -1,3 +1,4 @@
+
 import dash
 from dash.dependencies import Input, Output, State
 import dash_table
@@ -31,6 +32,7 @@ with open(DATA_PATH.joinpath("df_lat_lng.pickle"), "rb") as handle:
     df_lat_lng = pickle.load(handle)
 
 
+
 # Local  Expenditures and Revenue df
 def get_df_exp_rev(ST):
     """ loads the df_exp and df_rev files by state and adds Cat and Descr columns"""
@@ -40,6 +42,7 @@ def get_df_exp_rev(ST):
 
     local_df_exp = pd.merge(local_df_exp, du.df_cat_desc, how="left", on="Line")
     local_df_rev = pd.merge(local_df_rev, du.df_cat_desc, how="left", on="Line")
+
 
     ### TODO move add lat long to data prep?
     # local_df_exp = pd.merge(local_df_exp, df_lat_lng, how='left', left_on=['County name', 'ID name'],  right_on =['county_name', 'city'])
@@ -67,8 +70,11 @@ init_local_df_exp = exp[du.INIT_ST]
 init_local_df_rev = rev[du.INIT_ST]
 
 
+
 # initialize State
 # Update this when new data is added:
+
+
 
 
 # Local level
@@ -83,30 +89,22 @@ def year_filter(dff, year):
     )
 
 
-# leaflet map: Create geojson.
+#leaflet map: Create geojson.
 
-geojson = dl.GeoJSON(
-    id="geojson",
-    format="geobuf",
-    zoomToBounds=True,  # when true, zooms to bounds when data changes
-    cluster=True,  # when true, data are clustered
-    clusterToLayer=dlx.scatter.cluster_to_layer,  # how to draw clusters
-    zoomToBoundsOnClick=True,  # when true, zooms to bounds of feature (e.g. cluster) on click
-    options=dict(pointToLayer=dlx.scatter.point_to_layer),  # how to draw points
-    superClusterOptions=dict(radius=150),  # adjust cluster size
-    hideout={},
-)
-local_map = dl.Map(
-    [
-        dl.TileLayer(
-            url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"
-        ),
-        geojson,
-    ],
-    zoom=6,
-    center=(33.5, -86.8),
-    id="leaflet",
-)
+geojson = dl.GeoJSON( id="geojson", format="geobuf",
+                    zoomToBounds=True,  # when true, zooms to bounds when data changes
+                    cluster=True,  # when true, data are clustered
+                    clusterToLayer=dlx.scatter.cluster_to_layer,  # how to draw clusters
+                    zoomToBoundsOnClick=True,  # when true, zooms to bounds of feature (e.g. cluster) on click
+                    options= # how to draw points
+                             dict(onEachFeature="window.dash_props.module.on_each_feature"), #popup in callback
+                    superClusterOptions=dict(radius=150),  # adjust cluster size
+                    hideout={}
+                     )
+local_map =  dl.Map([dl.TileLayer(url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"),
+                          geojson], zoom=6, center=(33.5, -86.8), id="leaflet")
+
+
 
 
 #############  Local Table    ################################################
@@ -115,7 +113,7 @@ local_map = dl.Map(
 #############  Optional columns to show it the table
 
 local_columns = [
-    # {"id": "id", "name": [' ', "id"], "type": "text"},
+    {"id": "id", "name": [' ', "id"], "type": "text"},
     {"id": "ST", "name": [" ", "State"], "type": "text"},
     {"id": "County name", "name": [" ", "County"], "type": "text"},
     {"id": "ID name", "name": [" ", "Name"], "type": "text"},
@@ -180,7 +178,7 @@ local_datatable = html.Div(
             sort_action="native",
             export_format="xlsx",
             export_headers="display",
-            row_selectable="single",
+            row_selectable ='single',
             # row_deletable = True,
             is_focused=False,
             cell_selectable=False,
@@ -222,10 +220,15 @@ local_datatable = html.Div(
 )
 
 
+
 #####################   Header Cards and Markdown #############################
 first_card = dbc.Card(
     dbc.CardBody(
-        [html.H5("", className="card-title"), html.P(""),], style={"height": "75px"}
+        [
+            html.H5("", className="card-title"),
+            html.P(""),
+
+        ], style={'height': '75px'}
     )
 )
 
@@ -233,21 +236,23 @@ first_card = dbc.Card(
 #####################################  callbacks ###########################################
 
 
+
 #######  Local only updates:
 
 ####### Update counties when state changes
-@app.callback([Output("local_county_dropdown", "options"),], [Input("state", "value")])
+@app.callback([Output("local_county_dropdown", "options"), ], [Input("state", "value")])
 def update_counties(state):
     if state == "USA":
         state = du.INIT_STATE
     options = [{"label": "All Counties", "value": "all"}] + [
         {"label": c, "value": c}
         for c in exp[du.state_abbr[state]]["County name"]
-        .sort_values()
-        .dropna()
-        .unique()
+            .sort_values()
+            .dropna()
+            .unique()
     ]
     return [options]
+
 
 
 ####### Update local names when county and type changes
@@ -269,11 +274,8 @@ def update_counties(
     dff = exp[du.state_abbr[state]].copy()
 
     if local_type and (local_type != "all"):
-        if local_type == "c":
-            dff = dff[
-                dff["Gov Type"].str.contains("2", na=False)
-                | dff["Gov Type"].str.contains("3", na=False)
-            ]
+        if local_type == 'c':
+            dff = dff[dff["Gov Type"].str.contains('2', na=False) | dff["Gov Type"].str.contains('3', na=False)]
         else:
             dff = dff[dff["Gov Type"].str.contains(local_type, na=False)]
     if county and (county != "all"):
@@ -295,6 +297,7 @@ def update_counties(
         Output("local_table", "columns"),
         Output("local_title", "children"),
         Output("collapse", "is_open"),
+
     ],
     [
         Input("store_exp_or_rev", "data"),
@@ -329,11 +332,8 @@ def update_local_table(exp_or_rev, year, cat, subcat, state, type, county, name)
 
     # filter  table
     if type and (type != "all"):
-        if type == "c":
-            df_table = df_table[
-                df_table["Gov Type"].str.contains("2", na=False)
-                | df_table["Gov Type"].str.contains("3", na=False)
-            ].copy()
+        if type == 'c':
+            df_table = df_table[df_table["Gov Type"].str.contains('2', na=False) | df_table["Gov Type"].str.contains('3', na=False)].copy()
         else:
             df_table = df_table[df_table["Gov Type"].str.contains(type, na=False)]
         update_title = " ".join([title, " --> ", du.code_type[type]])
@@ -395,6 +395,7 @@ def update_local_table(exp_or_rev, year, cat, subcat, state, type, county, name)
     return df_table.to_dict("records"), columns, update_title, False
 
 
+
 @app.callback(
     Output("local_map", "children"),
     [Input("tabs", "active_tab")],
@@ -403,11 +404,11 @@ def update_local_table(exp_or_rev, year, cat, subcat, state, type, county, name)
 )
 def render_map(at, children):
     # Don't render until active_tab is leaflet, and render only the first time
-    print("im in the map render  callback")
+    print('im in the map render  callback')
     if not at or at != "local_tab" or children:
         raise PreventUpdate
     # Render map here.
-    print("render")
+    print('render')
     return local_map
 
 
@@ -419,29 +420,32 @@ def render_map(at, children):
         Output("local_legend", "children"),
         Output("geojson", "hideout"),
         Output("geojson", "data"),
+        Output('leaflet','viewport'),
+
     ],
     [
         Input("tabs", "active_tab"),
         Input("local_table", "derived_virtual_data"),
         Input("local_table", "derived_viewport_row_ids"),
+        Input("local_table", "derived_virtual_selected_row_ids"),
     ],
-    [State("local_table", "data"), State("local_map", "children")],
-    # prevent_initial_call=True,
+    [
+        State('local_table', "data"),
+        State("local_map", "children")
+    ],
+   # prevent_initial_call=True,
 )
-def update_local_table(
-    at, data, viewport_ids, data_state, local_map
-):  # TODO don't pass entire map.  just need to see if it exists
+def update_local_table(at, data, viewport_ids, selected_row_id, data_state, local_map):
+    #TODO don't pass entire map.  just need to see if it exists
 
     ctx = dash.callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
-    print("in bad callback", input_id)
+
     dff = pd.DataFrame(data)
     if (not at) or (at != "local_tab") or (local_map is None) or dff.empty:
-        print("im not updating")
         raise PreventUpdate
     else:
-        print("im updating")
         if "Per Capita" in dff:
             color_column = "Per Capita"
         elif "Per Student" in dff:
@@ -466,67 +470,43 @@ def update_local_table(
         ]
 
         bar_charts = []
-        if (not df_color.empty) and (len(dff["id"].unique()) > 1):
+        if (not df_color.empty) and (len(dff['id'].unique()) > 1):
             dff[color_column + "_color"] = df_color
             dff = dff[dff["id"].isin(viewport_ids)]
             bar_charts = du.make_bar_charts(dff, color_column, "ID name", clip=max_y)
 
+
         # update map
         dff_state = pd.DataFrame(data_state)
-        dff_lat_lng = df_lat_lng[df_lat_lng["state_id"] == dff_state["ST"].iat[0]]
+        dff_lat_lng = df_lat_lng[df_lat_lng['state_id'] == dff_state['ST'].iat[0]]
 
-        dff_state["name"] = dff_state["ID name"].str[:-4]
-        dff_state = pd.merge(
-            dff_state,
-            dff_lat_lng,
-            how="left",
-            left_on=["County name", "name"],
-            right_on=["county_name", "city"],
-        )
+        dff_state['name'] = dff_state['ID name'].str[:-4]
+        dff_state = pd.merge(dff_state, dff_lat_lng, how='left', left_on=['County name', 'name'],
+                            right_on=['county_name', 'city'])
         dff_state = dff_state.dropna()
-        dicts = dff_state.to_dict("rows")
+        dicts = dff_state.to_dict('row')
 
         for item in dicts:
-            item["tooltip"] = "${:.0f} per capita    {}".format(
-                item[color_column], item["name"]
-            )
-            item["popup"] = item["name"]  # bind popup
+            item["popup"] = "${:.0f} per capita    {}".format(item[color_column], item['name'])
+            item["tooltip"] = item["name"]  # bind popup
         geojson_data = dlx.dicts_to_geojson(dicts, lon="lng")  # convert to geojson
         geobuf = dlx.geojson_to_geobuf(geojson_data)  # convert to geobuf
 
         colors = colorlover.scales[str(5)]["seq"]["Blues"]
-        hideout = dict(
-            colorscale=colors,
-            color_prop=color_column,
-            popup_prop="name",
-            min=0,
-            max=max_y,
-            circle_options=dict(radius=10, perminent=True),
-        )
+        hideout = dict(colorscale=colors, color_prop=color_column, popup_prop='name', min=0, max=max_y,
+                       circle_options= dict(radius = 10))
 
-        # circle_options: {fillOpacity: 1, stroke: false, radius: 5}};
-        return styles, bar_charts, legend, hideout, geobuf
+        if selected_row_id and selected_row_id != []:
 
+            selected_row = dff_state[dff_state['id'].isin(selected_row_id)]
 
-@app.callback(
-    [Output("leaflet", "viewport"), Output("local_table", "selected_rows")],
-    [Input("local_table", "selected_row_ids")],
-    [State("local_table", "derived_viewport_data")],
-    prevent_initial_call=True,
-)
-def update_zoom(row, data):
-    dff = pd.DataFrame(data)
-    df_row = dff[dff["id"].isin(row)].iloc[0]
+            lat = selected_row.iloc[0]['lat']
+            lng = selected_row.iloc[0]['lng']
 
-    city = df_row["ID name"][:-4]
-    county = df_row["County name"]
-    state = df_row["ST"]
-    lat_lng = df_lat_lng[
-        (df_lat_lng["state_id"] == state)
-        & (df_lat_lng["county_name"] == county)
-        & (df_lat_lng["city"] == city)
-    ]
-    lat = lat_lng.iloc[0]["lat"]
-    lng = lat_lng.iloc[0]["lng"]
+            hideout = dict(colorscale=colors, color_prop=color_column, popup_prop='name', min=0, max=max_y,
+                           open=selected_row_id[0],
+                           circle_options=dict(radius=10))
+            return styles, bar_charts, legend, hideout, geobuf,  {'zoom':12, 'center':[lat, lng]}
 
-    return {"zoom": 12, "center": [lat, lng]}, []
+        else:
+            return styles, bar_charts, legend, hideout, geobuf, {}

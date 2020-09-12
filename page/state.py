@@ -553,6 +553,7 @@ layout = dbc.Container(
         Output("local_name_dropdown", "value"),
         Output("local_county_dropdown", "value"),
         Output("local_type", "value"),
+        Output('local_table', 'selected_rows')
     ],
     [
         Input("expenditures", "n_clicks"),
@@ -567,7 +568,7 @@ def update_exp_or_rev1(exp, rev, clear):
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
     print("revexp", input_id)
     if input_id == "clear":
-        return dash.no_update, dash.no_update, None, None, None, None, "c"
+        return dash.no_update, dash.no_update, None, None, None, None, "c", []
 
     dff = df_rev if input_id == "revenue" else df_exp
 
