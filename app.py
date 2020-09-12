@@ -20,7 +20,11 @@ app = dash.Dash(
     external_scripts=[chroma],
     external_stylesheets=external_stylesheets,
     meta_tags=[
-        {"name": "viewport", "content": "width=device-width", "initial-scale": 1,}
+        {
+            "name": "viewport",
+            "content": "width=device-width",
+            "initial-scale": 1,
+        }
     ],
 )
 
@@ -53,7 +57,10 @@ navbar = html.Div(
                     html.H4(
                         dcc.Link("About", href="/page/about", className="text-white")
                     ),
-                    width={"size": 1, "order": 12,},
+                    width={
+                        "size": 1,
+                        "order": 12,
+                    },
                 ),
             ],
             no_gutters=True,

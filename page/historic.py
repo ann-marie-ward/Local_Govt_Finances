@@ -59,8 +59,8 @@ OPTIONS, TIMEFRAME = highlights()
 
 
 def backtest(stocks, cash, start_bal, nper, start_yr, pmt):
-    """ calculates the investment returns for user selected asset allocation,
-        rebalanced annually
+    """calculates the investment returns for user selected asset allocation,
+    rebalanced annually
     """
 
     end_yr = start_yr + nper - 1
@@ -137,7 +137,7 @@ def cagr(dff):
 
 def worst(dff, asset):
     """calculate worst returns for asset in selected period
-            and format for display panel """
+    and format for display panel"""
 
     worst_yr_loss = min(dff[asset])
     worst_yr = dff.loc[dff[asset] == worst_yr_loss, "Year"].iloc[0]
@@ -393,7 +393,10 @@ slider_card = html.Div(
                     persistence=True,
                     persistence_type="session",
                 ),
-                html.H4("Then set stock allocation % ", className="card-title mt-3",),
+                html.H4(
+                    "Then set stock allocation % ",
+                    className="card-title mt-3",
+                ),
                 html.Div("(The rest will be bonds)", className="card-title"),
                 dcc.Slider(
                     id="stock_bond3",
@@ -419,7 +422,12 @@ inflation_checkbox = html.Div(
         persistence_type="session",
         labelClassName="m-2",
         inputClassName="mr-3",
-        options=[{"label": "Include inflation on graph", "value": "Yes",}],
+        options=[
+            {
+                "label": "Include inflation on graph",
+                "value": "Yes",
+            }
+        ],
         value=["Yes"],
     )
 )
@@ -494,7 +502,11 @@ amount_input_card = html.Div(
             dbc.InputGroup(
                 [
                     dbc.InputGroupAddon("My Portfolio Results: ", addon_type="prepend"),
-                    dbc.Input(id="results3", type="text", disabled=True,),
+                    dbc.Input(
+                        id="results3",
+                        type="text",
+                        disabled=True,
+                    ),
                 ],
                 className="mb-3",
                 style={"width": "375px"},
@@ -521,7 +533,9 @@ results_card = html.Div(
 data_source_card = html.Div(
     dbc.Card(
         [
-            dbc.CardHeader("Source Data: Annual Total Returns",),
+            dbc.CardHeader(
+                "Source Data: Annual Total Returns",
+            ),
             dbc.CardBody(annual_returns_pct_table),
         ],
         outline=True,
@@ -533,7 +547,9 @@ data_source_card = html.Div(
 learn_card = html.Div(
     dbc.Card(
         [
-            dbc.CardHeader("An Introduction to Backtesting",),
+            dbc.CardHeader(
+                "An Introduction to Backtesting",
+            ),
             dbc.CardBody(backtesting_text),
         ],
         outline=True,

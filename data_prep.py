@@ -44,12 +44,12 @@ YEARS = [year for year in range(2012, 2018)]
 
 ######################  Read Census file ######################################
 def census_financial_statement(filea, fileb):
-    """ Returns a dataframe  from excel files downloaded from:
-        https://www.census.gov/data/datasets/2017/econ/local/public-use-datasets.html  
-        Input Files are downloaded in 2 parts in 2 different excel files.  
-        Note - each year has it's own link
-       
-        """
+    """Returns a dataframe  from excel files downloaded from:
+    https://www.census.gov/data/datasets/2017/econ/local/public-use-datasets.html
+    Input Files are downloaded in 2 parts in 2 different excel files.
+    Note - each year has it's own link
+
+    """
 
     # 2012 and 2017 have 7 rows of "stuff" to ignore at top. Other years 7.
     # be sure to update for new data
@@ -110,8 +110,8 @@ with open(DATA_PATH.joinpath("census.pickle"), "wb") as handle:
 
 ######################  Read Population by State  ################################
 def read_census_pop():
-    """ Returns a df of stat population based on census data:
-        https://www.census.gov/data/tables/time-series/demo/popest/2010s-state-total.html
+    """Returns a df of stat population based on census data:
+    https://www.census.gov/data/tables/time-series/demo/popest/2010s-state-total.html
     """
 
     df = pd.read_excel(
@@ -137,12 +137,12 @@ df_state_code = pd.DataFrame(du.state_abbr.items(), columns=["State", "ST"])
 
 #########################  Make Revenue and Expense Report #########################
 def make_df_report(df, year, report):
-    """ Make df for a single year of a report.   The report is a subset of the census financial
+    """Make df for a single year of a report.   The report is a subset of the census financial
         statemetns and is consitant with:
         https://www.census.gov/library/visualizations/interactive/state-local-snapshot.html
         This is a helper function to create the complete dataset for all years
 
-    Args:  
+    Args:
         df (dataframe) : created from census_financial_statement() for a year
         year  (int)  :  4 digit year
         report (str) : type of report

@@ -396,14 +396,14 @@ def make_bar_charts(dff, yaxis_col, xaxis_col, default_color="#446e9b", clip="no
 
 
 def get_col(col_name, year):
-    """ Helps select column from df_exp and df_rev.
-        returns  'Amount_2017' from input args ('Amount', 2017)
+    """Helps select column from df_exp and df_rev.
+    returns  'Amount_2017' from input args ('Amount', 2017)
     """
     return "".join([col_name, "_", year])
 
 
 def make_sparkline(dff, spark_col, spark_yrs):
-    """ Makes df column with data formatted for sparkline figure.
+    """Makes df column with data formatted for sparkline figure.
 
     args:
         dff (df)         -dataframe of census data (expenditures or revenue) all years

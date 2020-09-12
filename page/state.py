@@ -55,8 +55,8 @@ def table_yr(dff, year):
 
 
 def read_census_pop():
-    """ Returns a df of stat population based on census data:
-        https://www.census.gov/data/tables/time-series/demo/popest/2010s-state-total.html
+    """Returns a df of stat population based on census data:
+    https://www.census.gov/data/tables/time-series/demo/popest/2010s-state-total.html
     """
 
     df = pd.read_excel(
@@ -91,7 +91,8 @@ def make_sunburst(df, path, values, title):
         color_discrete_map=du.sunburst_colors,
     )
     fig.update_traces(
-        go.Sunburst(hovertemplate=hover), insidetextorientation="radial",
+        go.Sunburst(hovertemplate=hover),
+        insidetextorientation="radial",
     )
     fig.update_layout(
         title_text=title,
@@ -364,7 +365,10 @@ def make_table(dff):
                     #   {"id": "State/Local", "name": [' ', "State or Local" ] , "type": "text"},
                     {
                         "id": "Amount",
-                        "name": [" ", "Total Amount",],
+                        "name": [
+                            " ",
+                            "Total Amount",
+                        ],
                         "type": "numeric",
                         "format": FormatTemplate.money(0),
                     },
@@ -459,7 +463,11 @@ tabs = html.Div(
 #####################   Header Cards and Markdown #############################
 first_card = dbc.Card(
     dbc.CardBody(
-        [html.H5("", className="card-title"), html.P(""),], style={"height": "75px"}
+        [
+            html.H5("", className="card-title"),
+            html.P(""),
+        ],
+        style={"height": "75px"},
     )
 )
 
@@ -532,7 +540,9 @@ layout = dbc.Container(
         ),
         ###########################   footer #########################
         html.Div(  # footer
-            [dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5"))),]
+            [
+                dbc.Row(dbc.Col(html.Div(footer, className="border-top mt-5"))),
+            ]
         ),
     ],
     fluid=True,
@@ -553,7 +563,7 @@ layout = dbc.Container(
         Output("local_name_dropdown", "value"),
         Output("local_county_dropdown", "value"),
         Output("local_type", "value"),
-        Output('local_table', 'selected_rows')
+        Output("local_table", "selected_rows"),
     ],
     [
         Input("expenditures", "n_clicks"),
@@ -589,7 +599,10 @@ def update_exp_or_rev1(exp, rev, clear):
 
 #####  update state dropdown
 @app.callback(
-    [Output("state", "value"), Output("local_table", "page_current"),],
+    [
+        Output("state", "value"),
+        Output("local_table", "page_current"),
+    ],
     [
         Input("map", "clickData"),
         Input("clear", "n_clicks"),
@@ -764,7 +777,14 @@ def switch_pages(_, __):
     #  prevent_initial_call=True,
 )
 def update_map(
-    __, year, state, cat, subcat, local, viewport, exp_or_rev,
+    __,
+    year,
+    state,
+    cat,
+    subcat,
+    local,
+    viewport,
+    exp_or_rev,
 ):
     dff_map = df_rev if exp_or_rev == "Revenue" else df_exp
     dff_table = dff_sunburst = dff_map.copy()

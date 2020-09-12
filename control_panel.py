@@ -114,7 +114,7 @@ clear_button = html.Div(
             id="clear",
             n_clicks=0,
             color="light",
-            className="mt-1 btn-sm",
+            className="mt-1 btn-sm float-right",
         )
     ]
 )
@@ -127,6 +127,7 @@ warning_msg_collapse = html.Div(
                 dbc.CardBody(
                     "To see data, try clearing some selections",
                     className="border border-warning font-weight-bold text-warning",
+                    id="warning_msg",
                 )
             ),
             id="collapse",
@@ -228,11 +229,18 @@ controls_group = html.Div(
             style={"height": "525px"},
         ),
         html.Div(
-            [county_dropdown, type_dropdown, local_dropdown,],
+            [
+                county_dropdown,
+                type_dropdown,
+                local_dropdown,
+            ],
             className="mt-2, pb-4 bg-white",
             style={"display": "none"},
             id="local_controls",
         ),
-        html.Div(clear_button, className="ml-1",),
+        html.Div(
+            clear_button,
+            className="ml-1",
+        ),
     ]
 )
