@@ -226,7 +226,7 @@ controls_group = html.Div(
                 state_local_button_group,
             ],
             className=" mb-1 border bg-white",
-            style={"height": "525px"},
+            style={"min-height": "525px"},
         ),
         html.Div(
             [

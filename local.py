@@ -85,6 +85,10 @@ def year_filter(dff, year):
 
 # leaflet map: Create geojson.
 
+attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, ' \
+              '<a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data ' \
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
 geojson = dl.GeoJSON(
     id="geojson",
     format="geobuf",
@@ -99,17 +103,28 @@ geojson = dl.GeoJSON(
     superClusterOptions=dict(radius=150),  # adjust cluster size
     hideout={},
 )
-local_map = dl.Map(
-    [
-        dl.TileLayer(
-            url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png"
-        ),
-        geojson,
-    ],
-    zoom=6,
-    center=(33.5, -86.8),
-    id="leaflet",
-)
+# local_map = dl.Map(
+#     [
+#         dl.TileLayer(
+#             url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png",
+#             attribution=attribution
+#         ),
+#         geojson,
+#     ],
+#     zoom=6,
+#     center=(33.5, -86.8),
+#     id="leaflet",
+# )
+
+
+local_map = html.Div(dl.Map([
+    dl.LayersControl([
+        dl.BaseLayer(dl.TileLayer(url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png",
+                                   attribution=attribution)),
+        dl.Overlay(geojson, name="cities", checked=True)
+    ])
+], zoom=6, center=(33.5, -86.8), id='leaflet'))
+
 
 
 #############  Local Table    ################################################
@@ -118,7 +133,7 @@ local_map = dl.Map(
 #############  Optional columns to show it the table
 
 local_columns = [
-    {"id": "id", "name": [" ", "id"], "type": "text"},
+ #   {"id": "id", "name": [" ", "id"], "type": "text"},
     {"id": "ST", "name": [" ", "State"], "type": "text"},
     {"id": "County name", "name": [" ", "County"], "type": "text"},
     {"id": "ID name", "name": [" ", "Name"], "type": "text"},
@@ -444,10 +459,11 @@ def render_map(at, children):
         Input("local_table", "derived_virtual_selected_row_ids"),
     ],
     [State("local_table", "data"), State("local_map", "children")],
-    # prevent_initial_call=True,
+     #prevent_initial_call=True,
 )
 def update_local_table(at, data, viewport_ids, selected_row_id, data_state, local_map):
     # TODO don't pass entire map.  just need to see if it exists
+    print('test1')
     if (not at) or (at != "local_tab"):
         raise PreventUpdate
 
@@ -547,3 +563,22 @@ def update_local_table(at, data, viewport_ids, selected_row_id, data_state, loca
 
         else:
             return styles, bar_charts, legend, hideout, geobuf, {}
+
+
+@app.callback(
+            Output("test", "children"),
+        [
+            Input('leaflet',"zoom"),
+            Input("geojson", "hideout"),
+            Input("geojson", "data"),
+            Input("leaflet", "viewport"),
+        ],
+
+)
+def test(zoom, hideout, data, viewport):
+    print('hi')
+    print(zoom)
+    print(hideout)
+    print(data)
+    print(viewport)
+    return []
